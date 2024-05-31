@@ -4,9 +4,9 @@ import json
 import argparse
 from datetime import datetime
 
-# Function to fetch current weather data from OpenWeatherMap One Call API
-def fetch_current_weather(api_key, lat, lon):
-    url = f"https://api.openweathermap.org/data/3.0/onecall?lat={lat}&lon={lon}&exclude=minutely,hourly,daily,alerts&appid={api_key}&units=imperial"
+# Function to fetch weather data from OpenWeatherMap One Call API
+def fetch_weather_data(api_key, lat, lon):
+    url = f"https://api.openweathermap.org/data/3.0/onecall?lat={lat}&lon={lon}&exclude=minutely,hourly&appid={api_key}&units=imperial"
     response = requests.get(url)
     return response.json()
 
@@ -40,10 +40,10 @@ test_locations = [
     {'name': 'Amazon Rainforest, Brazil', 'lat': -3.4653, 'lon': -62.2159, 'timezone': 'America/Manaus'}
 ]
 
-# Fetch current weather data for each location
+# Fetch weather data for each location
 weather_data = []
 for location in test_locations:
-    data = fetch_current_weather(api_key, location['lat'], location['lon'])
+    data = fetch_weather_data(api_key, location['lat'], location['lon'])
     weather_data.append({'location': location['name'], 'data': data})
 
 # Debugging: Print the API responses to understand their structures
@@ -51,10 +51,13 @@ for entry in weather_data:
     print(f"Weather API Response for {entry['location']}:")
     print(json.dumps(entry['data'], indent=4))
 
-# Convert current weather data to ECS compliant fields and send to LogScale
+# Convert weather data to ECS compliant fields and send to LogScale
 for entry in weather_data:
     location = entry['location']
     current_weather_data = entry['data']['current']
+    daily_weather_data = entry['data']['daily'][0]
+    alerts_data = entry['data'].get('alerts', [])
+
     ecs_weather_data = {
         "@timestamp": datetime.utcfromtimestamp(current_weather_data['dt']).strftime("%Y-%m-%dT%H:%M:%S.%fZ"),  # UTC timestamp
         "event": {
@@ -89,7 +92,12 @@ for entry in weather_data:
             "wind_gust": current_weather_data.get('wind_gust', None),
             "weather": current_weather_data['weather'][0]['description'],
             "rain": current_weather_data.get('rain', {}).get('1h', None),
-            "snow": current_weather_data.get('snow', {}).get('1h', None)
+            "snow": current_weather_data.get('snow', {}).get('1h', None),
+            "sunrise": datetime.utcfromtimestamp(daily_weather_data['sunrise']).strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
+            "sunset": datetime.utcfromtimestamp(daily_weather_data['sunset']).strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
+            "moonrise": datetime.utcfromtimestamp(daily_weather_data['moonrise']).strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
+            "moonset": datetime.utcfromtimestamp(daily_weather_data['moonset']).strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
+            "moon_phase": daily_weather_data['moon_phase']
         },
         "tags": ["weather_data", location]
     }
@@ -98,3 +106,42 @@ for entry in weather_data:
     status_code, response_text = send_to_logscale(logscale_api_url, args.logscale_api_token, ecs_weather_data)
     print(f"Weather data for {location}: {ecs_weather_data}")
     print(f"Status Code: {status_code}, Response: {response_text}")
+
+    # Process and send alerts data if available
+    if alerts_data:
+        for alert in alerts_data:
+            ecs_alert_data = {
+                "@timestamp": datetime.utcfromtimestamp(alert['start']).strftime("%Y-%m-%dT%H:%M:%S.%fZ"),  # UTC timestamp
+                "event": {
+                    "id": args.event_id,
+                    "created": datetime.now().strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
+                    "kind": "alert",
+                    "category": ["weather"],
+                    "type": ["info"]
+                },
+                "observer": {
+                    "type": "weather_station",
+                    "name": "OpenWeatherMap"
+                },
+                "geo": {
+                    "location": {
+                        "lat": entry['data']['lat'],
+                        "lon": entry['data']['lon']
+                    },
+                    "name": location
+                },
+                "weather_alert": {
+                    "sender_name": alert['sender_name'],
+                    "event": alert['event'],
+                    "start": datetime.utcfromtimestamp(alert['start']).strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
+                    "end": datetime.utcfromtimestamp(alert['end']).strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
+                    "description": alert['description'],
+                    "tags": alert.get('tags', [])
+                },
+                "tags": ["weather_alert", location]
+            }
+
+            # Send the alert data to LogScale
+            status_code, response_text = send_to_logscale(logscale_api_url, args.logscale_api_token, ecs_alert_data)
+            print(f"Alert data for {location}: {ecs_alert_data}")
+            print(f"Status Code: {status_code}, Response: {response_text}")
