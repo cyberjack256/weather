@@ -35,7 +35,7 @@ args = parser.parse_args()
 logscale_api_url = 'https://cloud.us.humio.com/api/v1/ingest/json'
 
 # API key for OpenWeatherMap API
-api_key = 'ce6d6487cd89b00051388a449adff087'
+api_key = 'REPLACEME'
 
 # Test location (Fairbanks, Alaska) and timezone
 test_location = {
