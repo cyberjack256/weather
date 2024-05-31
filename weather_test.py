@@ -1,33 +1,18 @@
-###Explanation of ECS Fields
-## @timestamp: The UTC timestamp of the event.
-## event.id: The falcon encounter ID provided as a command-line argument.
-## event.created: The timestamp when the event was created.
-## event.kind: The type of event, here set to "event".
-## event.category: The category of the event, here set to "weather".
-## event.type: The type of event, here set to "info".
-## observer.type: The type of observer, here set to "weather_station".
-## observer.name: The name of the observer, here set to "OpenWeatherMap".
-## geo.location: The geographical location (latitude and longitude) of the observation.
-## geo.name: The name of the location.
-## weather: The weather-specific data including temperature, humidity, pressure, wind speed, wind direction, and condition.
-## tags: Tags associated with the event, including the timezone.
-
-#Download the script:
-## $ curl -o ecs_weather.py https://raw.githubusercontent.com/cyberjack256/weather/main/weather.py
-
-#Run the script with the necessary parameters:
-## $ python3 ecs_weather.py <event_id> <logscale_api_token>
-
-
 #!/bin/python3
 import requests
 import json
 import argparse
-from datetime import datetime, timedelta
+from datetime import datetime
 
-# Function to fetch weather data from OpenWeatherMap API
-def fetch_weather(api_key, lat, lon, date):
-    url = f"http://api.openweathermap.org/data/2.5/onecall/timemachine?lat={lat}&lon={lon}&dt={int(date.timestamp())}&appid={api_key}&units=imperial"
+# Function to fetch current weather data from OpenWeatherMap API
+def fetch_current_weather(api_key, lat, lon):
+    url = f"http://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&appid={api_key}&units=imperial"
+    response = requests.get(url)
+    return response.json()
+
+# Function to fetch forecast weather data from OpenWeatherMap API
+def fetch_forecast_weather(api_key, lat, lon):
+    url = f"http://api.openweathermap.org/data/2.5/forecast?lat={lat}&lon={lon}&appid={api_key}&units=imperial"
     response = requests.get(url)
     return response.json()
 
@@ -50,7 +35,7 @@ args = parser.parse_args()
 logscale_api_url = 'https://cloud.us.humio.com/api/v1/ingest/json'
 
 # API key for OpenWeatherMap API
-api_key = 'REPLACEME'
+api_key = 'ce6d6487cd89b00051388a449adff087'
 
 # Test location (Fairbanks, Alaska) and timezone
 test_location = {
@@ -60,18 +45,69 @@ test_location = {
     'timezone': 'America/Anchorage'
 }
 
-# Fetch weather data for the past hour
-date = datetime.now() - timedelta(hours=1)
-weather_data = fetch_weather(api_key, test_location['lat'], test_location['lon'], date)
+# Fetch current weather data
+current_weather_data = fetch_current_weather(api_key, test_location['lat'], test_location['lon'])
+
+# Fetch forecast weather data
+forecast_weather_data = fetch_forecast_weather(api_key, test_location['lat'], test_location['lon'])
 
 # Debugging: Print the API response to understand its structure
-print("API Response:", json.dumps(weather_data, indent=4))
+print("Current Weather API Response:", json.dumps(current_weather_data, indent=4))
+print("Forecast Weather API Response:", json.dumps(forecast_weather_data, indent=4))
 
-# Error handling: Check if the 'hourly' key exists in the response
-if 'hourly' in weather_data and len(weather_data['hourly']) > 0:
-    hourly_weather = weather_data['hourly'][0]
-    ecs_weather_data = {
-        "@timestamp": datetime.utcfromtimestamp(hourly_weather['dt']).strftime("%Y-%m-%dT%H:%M:%S.%fZ"),  # UTC timestamp
+# Convert current weather data to ECS compliant fields
+ecs_current_weather_data = {
+    "@timestamp": datetime.utcfromtimestamp(current_weather_data['dt']).strftime("%Y-%m-%dT%H:%M:%S.%fZ"),  # UTC timestamp
+    "event": {
+        "id": args.event_id,
+        "created": datetime.now().strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
+        "kind": "event",
+        "category": ["weather"],
+        "type": ["info"]
+    },
+    "observer": {
+        "type": "weather_station",
+        "name": "OpenWeatherMap"
+    },
+    "geo": {
+        "location": {
+            "lat": test_location['lat'],
+            "lon": test_location['lon']
+        },
+        "name": test_location['name']
+    },
+    "weather": {
+        "temperature": current_weather_data['main']['temp'],
+        "feels_like": current_weather_data['main']['feels_like'],
+        "temp_min": current_weather_data['main']['temp_min'],
+        "temp_max": current_weather_data['main']['temp_max'],
+        "pressure": current_weather_data['main']['pressure'],
+        "sea_level_pressure": current_weather_data['main'].get('sea_level', None),
+        "ground_level_pressure": current_weather_data['main'].get('grnd_level', None),
+        "humidity": current_weather_data['main']['humidity'],
+        "wind": {
+            "speed": current_weather_data['wind']['speed'],
+            "direction": current_weather_data['wind']['deg'],
+            "gust": current_weather_data['wind'].get('gust', None)
+        },
+        "condition": current_weather_data['weather'][0]['description'],
+        "visibility": current_weather_data.get('visibility', None),
+        "clouds": current_weather_data['clouds']['all'],
+        "rain": current_weather_data.get('rain', {}).get('1h', None),
+        "snow": current_weather_data.get('snow', {}).get('1h', None)
+    },
+    "tags": ["weather_data", test_location['timezone']]
+}
+
+# Send the current weather data to LogScale
+status_code, response_text = send_to_logscale(logscale_api_url, args.logscale_api_token, ecs_current_weather_data)
+print(f"Current weather data for {test_location['name']}: {ecs_current_weather_data}")
+print(f"Status Code: {status_code}, Response: {response_text}")
+
+# Convert forecast weather data to ECS compliant fields and send to LogScale
+for forecast in forecast_weather_data['list']:
+    ecs_forecast_weather_data = {
+        "@timestamp": datetime.utcfromtimestamp(forecast['dt']).strftime("%Y-%m-%dT%H:%M:%S.%fZ"),  # UTC timestamp
         "event": {
             "id": args.event_id,
             "created": datetime.now().strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
@@ -91,22 +127,31 @@ if 'hourly' in weather_data and len(weather_data['hourly']) > 0:
             "name": test_location['name']
         },
         "weather": {
-            "temperature": hourly_weather['temp'],
-            "humidity": hourly_weather['humidity'],
-            "pressure": hourly_weather['pressure'],
+            "temperature": forecast['main']['temp'],
+            "feels_like": forecast['main']['feels_like'],
+            "temp_min": forecast['main']['temp_min'],
+            "temp_max": forecast['main']['temp_max'],
+            "pressure": forecast['main']['pressure'],
+            "sea_level_pressure": forecast['main'].get('sea_level', None),
+            "ground_level_pressure": forecast['main'].get('grnd_level', None),
+            "humidity": forecast['main']['humidity'],
             "wind": {
-                "speed": hourly_weather['wind_speed'],
-                "direction": hourly_weather['wind_deg']
+                "speed": forecast['wind']['speed'],
+                "direction": forecast['wind']['deg'],
+                "gust": forecast['wind'].get('gust', None)
             },
-            "condition": hourly_weather['weather'][0]['description']
+            "condition": forecast['weather'][0]['description'],
+            "visibility": forecast.get('visibility', None),
+            "clouds": forecast['clouds']['all'],
+            "rain": forecast.get('rain', {}).get('3h', None),
+            "snow": forecast.get('snow', {}).get('3h', None),
+            "pop": forecast.get('pop', None),
+            "part_of_day": forecast['sys'].get('pod', None)
         },
         "tags": ["weather_data", test_location['timezone']]
     }
 
-    # Send the weather data to LogScale
-    status_code, response_text = send_to_logscale(logscale_api_url, args.logscale_api_token, ecs_weather_data)
-
-    print(f"Weather data for {test_location['name']} on {datetime.utcfromtimestamp(hourly_weather['dt']).strftime('%Y-%m-%d %H:%M:%S')}: {ecs_weather_data}")
+    # Send the forecast weather data to LogScale
+    status_code, response_text = send_to_logscale(logscale_api_url, args.logscale_api_token, ecs_forecast_weather_data)
+    print(f"Forecast weather data for {test_location['name']} at {datetime.utcfromtimestamp(forecast['dt']).strftime('%Y-%m-%d %H:%M:%S')}: {ecs_forecast_weather_data}")
     print(f"Status Code: {status_code}, Response: {response_text}")
-else:
-    print("Error: 'hourly' key not found or empty in the API response")
