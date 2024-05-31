@@ -60,46 +60,53 @@ test_location = {
     'timezone': 'America/Anchorage'
 }
 
-# Fetch weather data for the current hour
+# Fetch weather data for the past hour
 date = datetime.now() - timedelta(hours=1)
 weather_data = fetch_weather(api_key, test_location['lat'], test_location['lon'], date)
 
-# Convert weather data to ECS compliant fields
-ecs_weather_data = {
-    "@timestamp": date.strftime("%Y-%m-%dT%H:%M:%S.%fZ"),  # UTC timestamp
-    "event": {
-        "id": args.event_id,
-        "created": datetime.now().strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
-        "kind": "event",
-        "category": ["weather"],
-        "type": ["info"]
-    },
-    "observer": {
-        "type": "weather_station",
-        "name": "OpenWeatherMap"
-    },
-    "geo": {
-        "location": {
-            "lat": test_location['lat'],
-            "lon": test_location['lon']
-        },
-        "name": test_location['name']
-    },
-    "weather": {
-        "temperature": weather_data['current']['temp'],
-        "humidity": weather_data['current']['humidity'],
-        "pressure": weather_data['current']['pressure'],
-        "wind": {
-            "speed": weather_data['current']['wind_speed'],
-            "direction": weather_data['current']['wind_deg']
-        },
-        "condition": weather_data['current']['weather'][0]['description']
-    },
-    "tags": ["weather_data", test_location['timezone']]
-}
+# Debugging: Print the API response to understand its structure
+print("API Response:", json.dumps(weather_data, indent=4))
 
-# Send the weather data to LogScale
-status_code, response_text = send_to_logscale(logscale_api_url, args.logscale_api_token, ecs_weather_data)
+# Error handling: Check if the 'hourly' key exists in the response
+if 'hourly' in weather_data and len(weather_data['hourly']) > 0:
+    hourly_weather = weather_data['hourly'][0]
+    ecs_weather_data = {
+        "@timestamp": datetime.utcfromtimestamp(hourly_weather['dt']).strftime("%Y-%m-%dT%H:%M:%S.%fZ"),  # UTC timestamp
+        "event": {
+            "id": args.event_id,
+            "created": datetime.now().strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
+            "kind": "event",
+            "category": ["weather"],
+            "type": ["info"]
+        },
+        "observer": {
+            "type": "weather_station",
+            "name": "OpenWeatherMap"
+        },
+        "geo": {
+            "location": {
+                "lat": test_location['lat'],
+                "lon": test_location['lon']
+            },
+            "name": test_location['name']
+        },
+        "weather": {
+            "temperature": hourly_weather['temp'],
+            "humidity": hourly_weather['humidity'],
+            "pressure": hourly_weather['pressure'],
+            "wind": {
+                "speed": hourly_weather['wind_speed'],
+                "direction": hourly_weather['wind_deg']
+            },
+            "condition": hourly_weather['weather'][0]['description']
+        },
+        "tags": ["weather_data", test_location['timezone']]
+    }
 
-print(f"Weather data for {test_location['name']} on {date.strftime('%Y-%m-%d %H:%M:%S')}: {ecs_weather_data}")
-print(f"Status Code: {status_code}, Response: {response_text}")
+    # Send the weather data to LogScale
+    status_code, response_text = send_to_logscale(logscale_api_url, args.logscale_api_token, ecs_weather_data)
+
+    print(f"Weather data for {test_location['name']} on {datetime.utcfromtimestamp(hourly_weather['dt']).strftime('%Y-%m-%d %H:%M:%S')}: {ecs_weather_data}")
+    print(f"Status Code: {status_code}, Response: {response_text}")
+else:
+    print("Error: 'hourly' key not found or empty in the API response")
