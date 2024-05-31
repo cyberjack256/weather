@@ -52,47 +52,46 @@ for idx, data in enumerate(historical_weather_data):
 # Convert historical weather data to ECS compliant fields and send to LogScale
 for day, historical_data in enumerate(historical_weather_data):
     for hourly_data in historical_data['data']:
-        if datetime.utcfromtimestamp(hourly_data['dt']).hour == datetime.now().hour:
-            ecs_historical_weather_data = {
-                "@timestamp": datetime.utcfromtimestamp(hourly_data['dt']).strftime("%Y-%m-%dT%H:%M:%S.%fZ"),  # UTC timestamp
-                "event": {
-                    "id": args.event_id,
-                    "created": datetime.now().strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
-                    "kind": "event",
-                    "category": ["weather"],
-                    "type": ["info"]
+        ecs_historical_weather_data = {
+            "@timestamp": datetime.utcfromtimestamp(hourly_data['dt']).strftime("%Y-%m-%dT%H:%M:%S.%fZ"),  # UTC timestamp
+            "event": {
+                "id": args.event_id,
+                "created": datetime.now().strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
+                "kind": "event",
+                "category": ["weather"],
+                "type": ["info"]
+            },
+            "observer": {
+                "type": "weather_station",
+                "name": "OpenWeatherMap"
+            },
+            "geo": {
+                "location": {
+                    "lat": test_location['lat'],
+                    "lon": test_location['lon']
                 },
-                "observer": {
-                    "type": "weather_station",
-                    "name": "OpenWeatherMap"
-                },
-                "geo": {
-                    "location": {
-                        "lat": test_location['lat'],
-                        "lon": test_location['lon']
-                    },
-                    "name": test_location['name']
-                },
-                "weather": {
-                    "temperature": hourly_data['temp'],
-                    "feels_like": hourly_data['feels_like'],
-                    "pressure": hourly_data['pressure'],
-                    "humidity": hourly_data['humidity'],
-                    "dew_point": hourly_data['dew_point'],
-                    "uvi": hourly_data.get('uvi', None),
-                    "clouds": hourly_data['clouds'],
-                    "visibility": hourly_data.get('visibility', None),
-                    "wind_speed": hourly_data['wind_speed'],
-                    "wind_deg": hourly_data['wind_deg'],
-                    "wind_gust": hourly_data.get('wind_gust', None),
-                    "weather": hourly_data['weather'][0]['description'],
-                    "rain": hourly_data.get('rain', {}).get('1h', None),
-                    "snow": hourly_data.get('snow', {}).get('1h', None)
-                },
-                "tags": ["historical_weather_data", test_location['timezone']]
-            }
+                "name": test_location['name']
+            },
+            "weather": {
+                "temperature": hourly_data['temp'],
+                "feels_like": hourly_data['feels_like'],
+                "pressure": hourly_data['pressure'],
+                "humidity": hourly_data['humidity'],
+                "dew_point": hourly_data['dew_point'],
+                "uvi": hourly_data.get('uvi', None),
+                "clouds": hourly_data['clouds'],
+                "visibility": hourly_data.get('visibility', None),
+                "wind_speed": hourly_data['wind_speed'],
+                "wind_deg": hourly_data['wind_deg'],
+                "wind_gust": hourly_data.get('wind_gust', None),
+                "weather": hourly_data['weather'][0]['description'],
+                "rain": hourly_data.get('rain', {}).get('3h', None),
+                "snow": hourly_data.get('snow', {}).get('3h', None)
+            },
+            "tags": ["historical_weather_data", test_location['timezone']]
+        }
 
-            # Send the historical weather data to LogScale
-            status_code, response_text = send_to_logscale(logscale_api_url, args.logscale_api_token, ecs_historical_weather_data)
-            print(f"Historical weather data for {test_location['name']} on {datetime.utcfromtimestamp(hourly_data['dt']).strftime('%Y-%m-%d %H:%M:%S')}: {ecs_historical_weather_data}")
-            print(f"Status Code: {status_code}, Response: {response_text}")
+        # Send the historical weather data to LogScale
+        status_code, response_text = send_to_logscale(logscale_api_url, args.logscale_api_token, ecs_historical_weather_data)
+        print(f"Historical weather data for {test_location['name']} on {datetime.utcfromtimestamp(hourly_data['dt']).strftime('%Y-%m-%d %H:%M:%S')}: {ecs_historical_weather_data}")
+        print(f"Status Code: {status_code}, Response: {response_text}")
