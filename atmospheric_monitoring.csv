@@ -1,0 +1,8 @@
+data_point,description,units,human_readable_units
+pm10,Particulate Matter (PM10) - Particles with diameters that are 10 micrometers and smaller, which can cause respiratory issues.,µg/m³,micrograms per cubic meter
+pm2_5,Particulate Matter (PM2.5) - Fine inhalable particles with diameters that are 2.5 micrometers and smaller, which can penetrate deep into the lungs.,µg/m³,micrograms per cubic meter
+no2,Nitrogen Dioxide (NO2) - A gas that can irritate airways in the human respiratory system.,µg/m³,micrograms per cubic meter
+so2,Sulfur Dioxide (SO2) - A gas that can cause respiratory problems and other health issues.,µg/m³,micrograms per cubic meter
+co,Carbon Monoxide (CO) - A colorless, odorless gas that can cause harmful health effects by reducing the amount of oxygen that can be transported in the bloodstream to critical parts of the body.,ppm,parts per million
+o3,Ozone (O3) - A gas composed of three oxygen atoms, high levels of which can cause respiratory issues.,µg/m³,micrograms per cubic meter
+aqi,Air Quality Index (AQI) - A number used to communicate how polluted the air currently is or how polluted it is forecast to become.,Index (0-500),Air Quality Index
