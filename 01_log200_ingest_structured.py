@@ -3,7 +3,7 @@ import json
 import requests
 from datetime import datetime, timedelta
 import logging
-from typing import Dict, Tuple, Any
+from typing import Dict, Tuple, Any, List
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG)
@@ -55,13 +55,13 @@ def generate_weather_event(encounter_id: str, units: str) -> Dict[str, Any]:
 
     return json_event
 
-def send_to_logscale(logscale_api_url: str, logscale_api_token: str, data: Dict[str, Any]) -> Tuple[int, str]:
+def send_to_logscale(logscale_api_url: str, logscale_api_token: str, data: List[Dict[str, Any]]) -> Tuple[int, str]:
     """
     Send data to LogScale.
     Args:
         logscale_api_url (str): The LogScale API URL.
         logscale_api_token (str): The LogScale API token.
-        data (Dict[str, Any]): The data to send.
+        data (List[Dict[str, Any]]): The data to send.
     Returns:
         Tuple[int, str]: The HTTP status code and response text.
     """
@@ -94,7 +94,7 @@ def load_config() -> Dict[str, str]:
         logging.error("Error decoding JSON from the configuration file.")
         raise
 
-    required_keys = ['logscale_api_url', 'logscale_api_token', 'encounter_id']
+    required_keys = ['logscale_api_url', 'logscale_api_token_structured', 'encounter_id']
     for key in required_keys:
         if key not in config or config[key] == "REPLACEME":
             raise ValueError(f"Please replace all 'REPLACEME' fields in the config file. Missing: {key}")
@@ -108,7 +108,7 @@ def main():
         logging.debug(f"Config loaded: {config}")
 
         logscale_api_url = config['logscale_api_url']
-        logscale_api_token = config['logscale_api_token']
+        logscale_api_token = config['logscale_api_token_structured']
         encounter_id = config['encounter_id']
         units = config.get('units', 'metric')
 
