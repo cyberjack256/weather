@@ -1,5 +1,3 @@
-
-
 import json
 import os
 from astral import LocationInfo
@@ -12,11 +10,16 @@ import requests
 from meteostat import Point, Daily, Stations
 import pandas as pd
 import numpy as np
-from typing import Dict, Any, List, Tuple
+from typing import Dict, Any, List
 
 # Set up logging
 import logging
 logging.basicConfig(level=logging.DEBUG)
+
+# Ensure requests uses the correct CA bundle
+import certifi
+requests_session = requests.Session()
+requests_session.verify = certifi.where()
 
 # Set the base directory relative to the script location
 base_dir = os.path.dirname(__file__)
@@ -75,11 +78,11 @@ def fetch_weather_data(latitude: float, longitude: float, date_start: str, date_
     location = Point(latitude, longitude)
     start = datetime.strptime(date_start, '%Y-%m-%d')
     end = datetime.strptime(date_end, '%Y-%m-%d')
-    data = Daily(location, start, end)
+    data = Daily(location, start, end, session=requests_session)
     data = data.fetch()
 
     # Optional: enrich data with nearest weather station information
-    stations = Stations()
+    stations = Stations(session=requests_session)
     stations = stations.nearby(latitude, longitude)
     station = stations.fetch(1)
     if not station.empty:
@@ -160,7 +163,7 @@ def generate_log_lines(weather_data: pd.DataFrame, sun_and_moon_info: Dict[str, 
 
 def send_to_logscale(logscale_api_url: str, logscale_api_token: str, data: List[Dict[str, Any]]) -> Tuple[int, str]:
     """
-    Send data to LogScale using the case study token.
+    Send data to LogScale.
     Args:
         logscale_api_url (str): The LogScale API URL.
         logscale_api_token (str): The LogScale API token.
@@ -232,4 +235,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
