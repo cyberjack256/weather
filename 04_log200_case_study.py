@@ -10,7 +10,7 @@ import requests
 from meteostat import Point, Daily, Stations
 import pandas as pd
 import numpy as np
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Tuple
 
 # Set up logging
 import logging
