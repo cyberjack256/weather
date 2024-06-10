@@ -31,12 +31,14 @@ def send_to_logscale(logscale_api_url, logscale_api_token, data):
         "Authorization": f"Bearer {logscale_api_token}",
         "Content-Type": "application/json"
     }
-    response = requests.post(logscale_api_url, json=data, headers=headers, verify=False)  # Disabling SSL verification for quick testing
+    response = requests.post(logscale_api_url, json=data, headers=headers, verify=False)
     return response.status_code, response.text
 
 def main():
     try:
         config = load_config()
+        logging.debug(f"Config loaded: {config}")
+
         latitude = float(config['latitude'])
         longitude = float(config['longitude'])
         date_start = datetime.strptime(config['date_start'], '%Y-%m-%d')
