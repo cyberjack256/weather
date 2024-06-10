@@ -31,7 +31,9 @@ def send_to_logscale(logscale_api_url, logscale_api_token, data):
         "Authorization": f"Bearer {logscale_api_token}",
         "Content-Type": "application/json"
     }
-    response = requests.post(logscale_api_url, json=data, headers=headers, verify=False)
+    session = requests.Session()
+    session.verify = False
+    response = session.post(logscale_api_url, json=data, headers=headers)
     return response.status_code, response.text
 
 def main():
