@@ -1,0 +1,18 @@
+{
+    "city_name": "REPLACEME",
+    "country_name": "REPLACEME",
+    "latitude": "REPLACEME",
+    "longitude": "REPLACEME",
+    "date_start": "REPLACEME",
+    "date_end": "REPLACEME",
+    "logscale_api_url": "https://cloud.us.humio.com/api/v1/ingest/humio-structured",
+    "logscale_api_token_structured": "REPLACEME_STRUCTURED",
+    "logscale_api_token_raw": "REPLACEME_RAW",
+    "logscale_api_token_case_study": "REPLACEME_CASE_STUDY",
+    "logscale_api_token_periodic": "REPLACEME_PERIODIC",
+    "encounter_id": "REPLACEME",
+    "alias": "REPLACEME",
+    "units": "metric",
+    "extreme_field": "REPLACEME",
+    "high": "REPLACEME"
+}
