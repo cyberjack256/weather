@@ -3,6 +3,7 @@ import random
 from datetime import datetime, timedelta
 import requests
 import logging
+import os
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG)
@@ -45,16 +46,20 @@ def generate_raw_log(encounter_id, alias, units):
     timestamp = (datetime.utcnow() - timedelta(minutes=random.randint(1, 5))).isoformat() + "Z"
     
     if units == "imperial":
+        temperature_unit = "°F"
+        wind_speed_unit = "mph"
         temperature = random.randint(14, 95)  # °F
         wind_speed = random.randint(0, 62)  # mph
     else:
+        temperature_unit = "°C"
+        wind_speed_unit = "km/h"
         temperature = random.randint(-10, 35)  # °C
         wind_speed = random.randint(0, 100)  # km/h
 
     humidity = random.randint(20, 90)  # %
     precipitation = random.choice([0, 1, 2, 5, 10, 20])  # mm
 
-    raw_log = f"[{timestamp}] Temp: {temperature}{units}, Humidity: {humidity}%, Precipitation: {precipitation}mm, Wind Speed: {wind_speed}{units}, Encounter ID: {encounter_id}, Alias: {alias}"
+    raw_log = f"[{timestamp}] Temp: {temperature}{temperature_unit}, Humidity: {humidity}%, Precipitation: {precipitation}mm, Wind Speed: {wind_speed}{wind_speed_unit}, Encounter ID: {encounter_id}, Alias: {alias}"
     
     return raw_log
 
