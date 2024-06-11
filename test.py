@@ -1,0 +1,1 @@
+import requests; from meteostat import Point, Daily; from datetime import datetime; location = Point(42.3601, -71.0589); data = Daily(location, datetime(2023, 1, 1), datetime(2023, 1, 10)); print(data.fetch())
