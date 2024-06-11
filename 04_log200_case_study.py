@@ -10,7 +10,7 @@ import requests
 from meteostat import Point, Daily, Stations
 import pandas as pd
 import numpy as np
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Tuple
 
 # Set up logging
 import logging
@@ -87,7 +87,7 @@ def fetch_weather_data(latitude: float, longitude: float, date_start: str, date_
     # Replace NaN and infinite values with None to avoid JSON serialization issues
     data = data.replace([np.nan, np.inf, -np.inf], None)
     logging.info("Fetched weather data:")
-    logging.info(data)
+    logging.info(data.head())  # Log only the first few rows for clarity
     return data
 
 def generate_log_lines(weather_data: pd.DataFrame, sun_and_moon_info: Dict[str, Any], encounter_id: str, alias: str, config: Dict[str, str]) -> List[Dict[str, Any]]:
@@ -122,7 +122,9 @@ def generate_log_lines(weather_data: pd.DataFrame, sun_and_moon_info: Dict[str, 
             "ecs": {
                 "version": "1.12.0"
             },
-            "moon_phase": sun_and_moon_info["moon_phase"],
+            "moon": {
+                "phase": sun_and_moon_info["moon_phase"]
+            },
             "weather": {
                 "temperature": row["tavg"],
                 "min_temperature": row["tmin"],
@@ -152,13 +154,13 @@ def generate_log_lines(weather_data: pd.DataFrame, sun_and_moon_info: Dict[str, 
             }
         }
         log_lines.append(log_entry)
-    logging.info("Generated log lines:")
-    logging.info(log_lines)
+    logging.info("Generated log lines (sample):")
+    logging.info(log_lines[:5])  # Log only the first 5 entries for clarity
     return log_lines
 
 def send_to_logscale(logscale_api_url: str, logscale_api_token: str, data: List[Dict[str, Any]]) -> Tuple[int, str]:
     """
-    Send data to LogScale using the periodic token.
+    Send data to LogScale using the case study token.
     Args:
         logscale_api_url (str): The LogScale API URL.
         logscale_api_token (str): The LogScale API token.
@@ -222,7 +224,7 @@ def main():
 
         # Send log lines to LogScale
         structured_data = [{"tags": {"host": "weatherhost", "source": "weatherdata"}, "events": [{"timestamp": event['@timestamp'], "attributes": event} for event in log_lines]}]
-        status_code, response_text = send_to_logscale(config['logscale_api_url'], config['logscale_api_token_periodic'], structured_data)
+        status_code, response_text = send_to_logscale(config['logscale_api_url'], config['logscale_api_token_case_study'], structured_data)
         logging.info(f"Status Code: {status_code}, Response: {response_text}")
     except Exception as e:
         logging.error("An error occurred: ", exc_info=True)
