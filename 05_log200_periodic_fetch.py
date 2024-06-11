@@ -87,7 +87,7 @@ def fetch_weather_data(latitude: float, longitude: float, date_start: str, date_
     # Replace NaN and infinite values with None to avoid JSON serialization issues
     data = data.replace([np.nan, np.inf, -np.inf], None)
     logging.info("Fetched weather data:")
-    logging.info(data)
+    logging.info(data.head())  # Log only the first few rows for clarity
     return data
 
 def generate_log_lines(weather_data: pd.DataFrame, sun_and_moon_info: Dict[str, Any], encounter_id: str, alias: str, config: Dict[str, str]) -> List[Dict[str, Any]]:
@@ -122,7 +122,9 @@ def generate_log_lines(weather_data: pd.DataFrame, sun_and_moon_info: Dict[str, 
             "ecs": {
                 "version": "1.12.0"
             },
-            "moon_phase": sun_and_moon_info["moon_phase"],
+            "moon": {
+                "phase": sun_and_moon_info["moon_phase"]
+            },
             "weather": {
                 "temperature": row["tavg"],
                 "min_temperature": row["tmin"],
@@ -152,8 +154,8 @@ def generate_log_lines(weather_data: pd.DataFrame, sun_and_moon_info: Dict[str, 
             }
         }
         log_lines.append(log_entry)
-    logging.info("Generated log lines:")
-    logging.info(log_lines)
+    logging.info("Generated log lines (sample):")
+    logging.info(log_lines[:5])  # Log only the first 5 entries for clarity
     return log_lines
 
 def send_to_logscale(logscale_api_url: str, logscale_api_token: str, data: List[Dict[str, Any]]) -> Tuple[int, str]:
