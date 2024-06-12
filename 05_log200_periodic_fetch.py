@@ -25,8 +25,6 @@ def load_config():
         config = json.load(file)
     if any(value == "REPLACEME" for value in config.values()):
         raise ValueError("Please replace all 'REPLACEME' fields in the config file.")
-    if 'extreme_field' not in config or 'high' not in config:
-        raise ValueError("Missing required fields: 'extreme_field' and/or 'high' in the config file.")
     return config
 
 # Initialize TimezoneFinder
@@ -64,6 +62,7 @@ def generate_log_lines(weather_data, sun_and_moon_info, encounter_id, alias, con
     logging.debug("Generating log lines...")
     log_lines = []
     for time, row in weather_data.iterrows():
+        normalized_moon_phase = normalize_moon_phase(sun_and_moon_info["moon_phase"])
         log_entry = {
             "@timestamp": time.strftime('%Y-%m-%dT%H:%M:%SZ'),
             "geo": {
@@ -81,7 +80,9 @@ def generate_log_lines(weather_data, sun_and_moon_info, encounter_id, alias, con
             "ecs": {
                 "version": "1.12.0"
             },
-            "moon_phase": sun_and_moon_info["moon_phase"],
+            "moon": {
+                "phase": normalized_moon_phase
+            },
             "weather": {
                 "temperature": row["temp"],
                 "dew_point": row["dwpt"],
@@ -143,15 +144,19 @@ def generate_extreme_weather_data(weather_data, extreme_field, high):
     return weather_data, alert_message
 
 # Send data to LogScale
-def send_to_logscale(logscale_api_url, logscale_api_token_periodic, data):
+def send_to_logscale(logscale_api_url, logscale_api_token, data):
     logging.debug("Sending data to LogScale...")
     headers = {
-        "Authorization": f"Bearer {logscale_api_token_periodic}",
+        "Authorization": f"Bearer {logscale_api_token}",
         "Content-Type": "application/json"
     }
     response = requests.post(logscale_api_url, json=data, headers=headers)
     logging.debug(f"Response from LogScale: Status Code: {response.status_code}, Response: {response.text}")
     return response.status_code, response.text
+
+# Normalize moon phase value to the range [0, 1]
+def normalize_moon_phase(phase_value):
+    return phase_value % 1
 
 # Main function
 def main():
@@ -163,8 +168,8 @@ def main():
         longitude = float(config['longitude'])
         alias = config['alias']
         encounter_id = config['encounter_id']
-        extreme_field = config.get('extreme_field', None)
-        high = config.get('high', True)
+        extreme_field = config.get('extreme_field')
+        high = config.get('high', None)
 
         # Get timezone
         timezone = get_timezone(latitude, longitude)
@@ -190,9 +195,9 @@ def main():
         # Fetch weather data
         weather_data = fetch_weather_data(latitude, longitude)
 
-        # Generate extreme weather data if specified
+        # Generate extreme weather data if extreme_field and high are set
         alert_message = ""
-        if extreme_field:
+        if extreme_field and high is not None:
             weather_data, alert_message = generate_extreme_weather_data(weather_data, extreme_field, high)
 
         # Generate log lines
