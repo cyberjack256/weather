@@ -56,6 +56,10 @@ def fetch_weather_data(latitude, longitude, date_start, date_end):
     logging.debug(f"Weather data fetched: {data}")
     return data
 
+# Normalize moon phase value
+def normalize_moon_phase(value):
+    return value % 1
+
 # Generate log lines
 def generate_log_lines(weather_data, sun_and_moon_info, encounter_id, alias, config):
     logging.debug("Generating log lines...")
@@ -78,7 +82,7 @@ def generate_log_lines(weather_data, sun_and_moon_info, encounter_id, alias, con
             "ecs": {
                 "version": "1.12.0"
             },
-            "moon_phase": sun_and_moon_info[time.date()]["moon_phase"],
+            "moon_phase": normalize_moon_phase(sun_and_moon_info[time.date()]["moon_phase"]),
             "weather": {
                 "temperature": row["tavg"],
                 "min_temperature": row["tmin"],
