@@ -10,46 +10,25 @@ import requests
 from meteostat import Point, Daily, Stations
 import pandas as pd
 import numpy as np
-from typing import Dict, Any, List, Tuple
-
-# Set up logging
 import logging
+
+# Configure logging
 logging.basicConfig(level=logging.DEBUG)
 
 # Set the base directory relative to the script location
 base_dir = os.path.dirname(__file__)
 
-def load_config() -> Dict[str, str]:
-    """
-    Load and validate the configuration from the config.json file.
-    Returns:
-        Dict[str, str]: The loaded configuration.
-    """
+# Load and validate the configuration
+def load_config():
     config_path = os.path.join(base_dir, 'config.json')
-    try:
-        with open(config_path, 'r') as file:
-            config = json.load(file)
-    except FileNotFoundError:
-        logging.error("Configuration file not found.")
-        raise
-    except json.JSONDecodeError:
-        logging.error("Error decoding JSON from the configuration file.")
-        raise
-
+    with open(config_path, 'r') as file:
+        config = json.load(file)
     if any(value == "REPLACEME" for value in config.values()):
         raise ValueError("Please replace all 'REPLACEME' fields in the config file.")
-
     return config
 
-def get_timezone(latitude: float, longitude: float) -> ZoneInfo:
-    """
-    Get the timezone for a given latitude and longitude.
-    Args:
-        latitude (float): The latitude.
-        longitude (float): The longitude.
-    Returns:
-        ZoneInfo: The timezone information.
-    """
+# Initialize TimezoneFinder
+def get_timezone(latitude, longitude):
     tf = TimezoneFinder()
     tz_name = tf.timezone_at(lat=latitude, lng=longitude)
     if tz_name:
@@ -57,18 +36,8 @@ def get_timezone(latitude: float, longitude: float) -> ZoneInfo:
     else:
         raise Exception("Could not determine the timezone.")
 
-def fetch_weather_data(latitude: float, longitude: float, date_start: str, date_end: str, units: str) -> pd.DataFrame:
-    """
-    Fetch weather data for the specified location and date range.
-    Args:
-        latitude (float): The latitude of the location.
-        longitude (float): The longitude of the location.
-        date_start (str): The start date in 'YYYY-MM-DD' format.
-        date_end (str): The end date in 'YYYY-MM-DD' format.
-        units (str): The units of measurement, either 'imperial' or 'metric'.
-    Returns:
-        pd.DataFrame: The fetched weather data.
-    """
+# Fetch weather data for the specified date range
+def fetch_weather_data(latitude, longitude, date_start, date_end, units):
     logging.info("Fetching weather data...")
     location = Point(latitude, longitude)
     start = datetime.strptime(date_start, '%Y-%m-%d')
@@ -87,21 +56,11 @@ def fetch_weather_data(latitude: float, longitude: float, date_start: str, date_
     # Replace NaN and infinite values with None to avoid JSON serialization issues
     data = data.replace([np.nan, np.inf, -np.inf], None)
     logging.info("Fetched weather data:")
-    logging.info(data.head())  # Log only the first few rows for clarity
+    logging.info(data)
     return data
 
-def generate_log_lines(weather_data: pd.DataFrame, sun_and_moon_info: Dict[str, Any], encounter_id: str, alias: str, config: Dict[str, str]) -> List[Dict[str, Any]]:
-    """
-    Generate log lines from weather data and sun/moon information.
-    Args:
-        weather_data (pd.DataFrame): The weather data.
-        sun_and_moon_info (Dict[str, Any]): The sun and moon information.
-        encounter_id (str): The encounter ID.
-        alias (str): The alias.
-        config (Dict[str, str]): The configuration dictionary.
-    Returns:
-        List[Dict[str, Any]]: The generated log lines.
-    """
+# Generate log lines
+def generate_log_lines(weather_data, sun_and_moon_info, encounter_id, alias, config):
     logging.info("Generating log lines...")
     log_lines = []
     for time, row in weather_data.iterrows():
@@ -122,9 +81,7 @@ def generate_log_lines(weather_data: pd.DataFrame, sun_and_moon_info: Dict[str, 
             "ecs": {
                 "version": "1.12.0"
             },
-            "moon": {
-                "phase": sun_and_moon_info["moon_phase"]
-            },
+            "moon_phase": sun_and_moon_info[time]["moon_phase"],
             "weather": {
                 "temperature": row["tavg"],
                 "min_temperature": row["tmin"],
@@ -146,46 +103,35 @@ def generate_log_lines(weather_data: pd.DataFrame, sun_and_moon_info: Dict[str, 
                 "dataset": "weather"
             },
             "sun": {
-                "sunrise": sun_and_moon_info["sun_info"]["sunrise"],
-                "noon": sun_and_moon_info["sun_info"]["noon"],
-                "dusk": sun_and_moon_info["sun_info"]["dusk"],
-                "sunset": sun_and_moon_info["sun_info"]["sunset"],
-                "dawn": sun_and_moon_info["sun_info"]["dawn"]
+                "sunrise": sun_and_moon_info[time]["sun_info"]["sunrise"],
+                "noon": sun_and_moon_info[time]["sun_info"]["noon"],
+                "dusk": sun_and_moon_info[time]["sun_info"]["dusk"],
+                "sunset": sun_and_moon_info[time]["sun_info"]["sunset"],
+                "dawn": sun_and_moon_info[time]["sun_info"]["dawn"]
             }
         }
         log_lines.append(log_entry)
-    logging.info("Generated log lines (sample):")
-    logging.info(log_lines[:5])  # Log only the first 5 entries for clarity
+    logging.info("Generated log lines:")
+    logging.info(log_lines)
     return log_lines
 
-def send_to_logscale(logscale_api_url: str, logscale_api_token: str, data: List[Dict[str, Any]]) -> Tuple[int, str]:
-    """
-    Send data to LogScale using the case study token.
-    Args:
-        logscale_api_url (str): The LogScale API URL.
-        logscale_api_token (str): The LogScale API token.
-        data (List[Dict[str, Any]]): The data to send.
-    Returns:
-        Tuple[int, str]: The HTTP status code and response text.
-    """
+# Send data to LogScale
+def send_to_logscale(logscale_api_url, logscale_api_token, data):
     logging.info("Sending data to LogScale...")
     headers = {
         "Authorization": f"Bearer {logscale_api_token}",
         "Content-Type": "application/json"
     }
-    try:
-        response = requests.post(logscale_api_url, json=data, headers=headers)
-        response.raise_for_status()
-        logging.info(f"Response from LogScale: Status Code: {response.status_code}, Response: {response.text}")
-        return response.status_code, response.text
-    except requests.RequestException as e:
-        logging.error(f"Failed to send data to LogScale: {e}")
-        raise
+    response = requests.post(logscale_api_url, json=data, headers=headers)
+    logging.info(f"Response from LogScale: Status Code: {response.status_code}, Response: {response.text}")
+    return response.status_code, response.text
 
+# Main function
 def main():
-    """Main function to load configuration, generate events, and send them to LogScale."""
     try:
+        logging.info("Starting script...")
         config = load_config()
+        logging.info(f"Config loaded: {config}")
         latitude = float(config['latitude'])
         longitude = float(config['longitude'])
         date_start = config['date_start']
@@ -198,26 +144,28 @@ def main():
         timezone = get_timezone(latitude, longitude)
         logging.info(f"Timezone: {timezone}")
 
-        # Fetch sun and moon data
-        city = LocationInfo(config['city_name'], config['country_name'], timezone, latitude, longitude)
-        date_specified = datetime.now()
-        s = sun(city.observer, date=date_specified, tzinfo=city.timezone)
-        moon_phase_value = phase(date_specified)
-        sun_and_moon_info = {
-            'sun_info': {
-                'dawn': s['dawn'].isoformat(),
-                'sunrise': s['sunrise'].isoformat(),
-                'noon': s['noon'].isoformat(),
-                'sunset': s['sunset'].isoformat(),
-                'dusk': s['dusk'].isoformat(),
-            },
-            'moon_phase': moon_phase_value
-        }
-        logging.info("Sun and moon information:")
-        logging.info(sun_and_moon_info)
-
         # Fetch weather data
         weather_data = fetch_weather_data(latitude, longitude, date_start, date_end, units)
+
+        # Fetch sun and moon data for each day in the weather data range
+        sun_and_moon_info = {}
+        for time in weather_data.index:
+            date_specified = time.to_pydatetime()
+            city = LocationInfo(config['city_name'], config['country_name'], timezone, latitude, longitude)
+            s = sun(city.observer, date=date_specified, tzinfo=city.timezone)
+            moon_phase_value = phase(date_specified)
+            sun_and_moon_info[time] = {
+                'sun_info': {
+                    'dawn': s['dawn'].isoformat(),
+                    'sunrise': s['sunrise'].isoformat(),
+                    'noon': s['noon'].isoformat(),
+                    'sunset': s['sunset'].isoformat(),
+                    'dusk': s['dusk'].isoformat(),
+                },
+                'moon_phase': moon_phase_value
+            }
+        logging.info("Sun and moon information:")
+        logging.info(sun_and_moon_info)
 
         # Generate log lines
         log_lines = generate_log_lines(weather_data, sun_and_moon_info, encounter_id, alias, config)
@@ -227,8 +175,7 @@ def main():
         status_code, response_text = send_to_logscale(config['logscale_api_url'], config['logscale_api_token_case_study'], structured_data)
         logging.info(f"Status Code: {status_code}, Response: {response_text}")
     except Exception as e:
-        logging.error("An error occurred: ", exc_info=True)
-        print(e)
+        logging.error(e)
 
 if __name__ == "__main__":
     main()
