@@ -25,6 +25,8 @@ def load_config():
         config = json.load(file)
     if any(value == "REPLACEME" for value in config.values()):
         raise ValueError("Please replace all 'REPLACEME' fields in the config file.")
+    if 'extreme_field' not in config or 'high' not in config:
+        raise ValueError("Missing required fields: 'extreme_field' and/or 'high' in the config file.")
     return config
 
 # Initialize TimezoneFinder
@@ -141,10 +143,10 @@ def generate_extreme_weather_data(weather_data, extreme_field, high):
     return weather_data, alert_message
 
 # Send data to LogScale
-def send_to_logscale(logscale_api_url, logscale_api_token, data):
+def send_to_logscale(logscale_api_url, logscale_api_token_periodic, data):
     logging.debug("Sending data to LogScale...")
     headers = {
-        "Authorization": f"Bearer {logscale_api_token}",
+        "Authorization": f"Bearer {logscale_api_token_periodic}",
         "Content-Type": "application/json"
     }
     response = requests.post(logscale_api_url, json=data, headers=headers)
@@ -198,7 +200,7 @@ def main():
 
         # Send log lines to LogScale
         structured_data = [{"tags": {"host": "weatherhost", "source": "weatherdata"}, "events": [{"timestamp": event['@timestamp'], "attributes": event} for event in log_lines]}]
-        status_code, response_text = send_to_logscale(config['logscale_api_url'], config['logscale_api_token'], structured_data)
+        status_code, response_text = send_to_logscale(config['logscale_api_url'], config['logscale_api_token_periodic'], structured_data)
         logging.debug(f"Status Code: {status_code}, Response: {response_text}")
     except Exception as e:
         logging.error(e)
