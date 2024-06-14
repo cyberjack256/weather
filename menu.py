@@ -70,7 +70,8 @@ def validate_config(script_id):
     missing_fields = [field for field in REQUIRED_FIELDS[script_id] if field not in config or config[field] == '']
     if missing_fields:
         print(f"\nMissing required fields for script {script_id}: {', '.join(missing_fields)}")
-        return False
+        for field in missing_fields:
+            set_config_field(field)
     return True
 
 # Run script
