@@ -70,50 +70,52 @@ def generate_log_lines(weather_data, sun_and_moon_info, encounter_id, alias, con
     log_lines = []
     for time, row in weather_data.iterrows():
         log_entry = {
-            "@timestamp": time.strftime('%Y-%m-%dT%H:%M:%SZ'),
-            "geo": {
-                "city_name": config["city_name"],
-                "country_name": config["country_name"],
-                "location": {
-                    "lat": config["latitude"],
-                    "lon": config["longitude"]
-                }
-            },
-            "observer": {
-                "alias": alias,
-                "id": encounter_id
-            },
-            "ecs": {
-                "version": "1.12.0"
-            },
-            "moon_phase": sun_and_moon_info["moon_phase"],
-            "weather": {
-                "temperature": row["temp"],
-                "dew_point": row["dwpt"],
-                "relative_humidity": row["rhum"],
-                "precipitation": row["prcp"],
-                "snow": row["snow"],
-                "wind": {
-                    "speed": row["wspd"],
-                    "direction": row["wdir"],
-                    "gust": row["wpgt"]
+            "timestamp": time.strftime('%Y-%m-%dT%H:%M:%SZ'),
+            "attributes": {
+                "geo": {
+                    "city_name": config["city_name"],
+                    "country_name": config["country_name"],
+                    "location": {
+                        "lat": config["latitude"],
+                        "lon": config["longitude"]
+                    }
                 },
-                "pressure": row["pres"],
-                "sunshine": row["tsun"],
-                "station_name": row.get("station_name", "N/A"),
-                "alert": alert_message
-            },
-            "event": {
-                "created": datetime.utcnow().isoformat() + "Z",
-                "module": "weather",
-                "dataset": "weather"
-            },
-            "sun": {
-                "sunrise": sun_and_moon_info["sun_info"]["sunrise"],
-                "noon": sun_and_moon_info["sun_info"]["noon"],
-                "dusk": sun_and_moon_info["sun_info"]["dusk"],
-                "sunset": sun_and_moon_info["sun_info"]["sunset"],
-                "dawn": sun_and_moon_info["sun_info"]["dawn"]
+                "observer": {
+                    "alias": alias,
+                    "id": encounter_id
+                },
+                "ecs": {
+                    "version": "1.12.0"
+                },
+                "moon_phase": sun_and_moon_info["moon_phase"],
+                "weather": {
+                    "temperature": row["temp"],
+                    "dew_point": row["dwpt"],
+                    "relative_humidity": row["rhum"],
+                    "precipitation": row["prcp"],
+                    "snow": row["snow"],
+                    "wind": {
+                        "speed": row["wspd"],
+                        "direction": row["wdir"],
+                        "gust": row["wpgt"]
+                    },
+                    "pressure": row["pres"],
+                    "sunshine": row["tsun"],
+                    "station_name": row.get("station_name", "N/A"),
+                    "alert": alert_message
+                },
+                "event": {
+                    "created": datetime.utcnow().isoformat() + "Z",
+                    "module": "weather",
+                    "dataset": "weather"
+                },
+                "sun": {
+                    "sunrise": sun_and_moon_info["sun_info"]["sunrise"],
+                    "noon": sun_and_moon_info["sun_info"]["noon"],
+                    "dusk": sun_and_moon_info["sun_info"]["dusk"],
+                    "sunset": sun_and_moon_info["sun_info"]["sunset"],
+                    "dawn": sun_and_moon_info["sun_info"]["dawn"]
+                }
             }
         }
         log_lines.append(log_entry)
@@ -124,7 +126,14 @@ def send_to_logscale(log_lines, logscale_api_token):
         "Authorization": f"Bearer {logscale_api_token}",
         "Content-Type": "application/json"
     }
-    response = requests.post(LOGSCALE_URL, json=log_lines, headers=headers)
+    payload = [{
+        "tags": {
+            "host": "weatherhost",
+            "source": "weatherdata"
+        },
+        "events": log_lines
+    }]
+    response = requests.post(LOGSCALE_URL, json=payload, headers=headers)
     return response.status_code, response.text
 
 def generate_extreme_weather_data(weather_data, extreme_field, high):
