@@ -1,16 +1,16 @@
 import json
 import os
+import logging
+import requests
+from datetime import datetime, timedelta
 from astral import LocationInfo
 from astral.sun import sun
 from astral.moon import phase
-from datetime import datetime
 from timezonefinder import TimezoneFinder
 from zoneinfo import ZoneInfo
-import requests
 from meteostat import Point, Daily, Stations
 import pandas as pd
 import numpy as np
-import logging
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -18,13 +18,14 @@ logging.basicConfig(level=logging.DEBUG)
 # Set the base directory relative to the script location
 base_dir = os.path.dirname(__file__)
 
+CONFIG_FILE = 'config.json'
+LOGSCALE_URL = 'https://cloud.us.humio.com/api/v1/ingest/humio-structured'
+
 # Load and validate the configuration
 def load_config():
-    config_path = os.path.join(base_dir, 'config.json')
+    config_path = os.path.join(base_dir, CONFIG_FILE)
     with open(config_path, 'r') as file:
         config = json.load(file)
-    if any(value == "REPLACEME" for value in config.values()):
-        raise ValueError("Please replace all 'REPLACEME' fields in the config file.")
     return config
 
 # Initialize TimezoneFinder
@@ -37,14 +38,13 @@ def get_timezone(latitude, longitude):
         raise Exception("Could not determine the timezone.")
 
 # Fetch weather data for the specified date range
-def fetch_weather_data(latitude, longitude, date_start, date_end, units):
+def fetch_weather_data(latitude, longitude, date_start, date_end):
     logging.debug("Fetching weather data...")
     location = Point(latitude, longitude)
     start = datetime.strptime(date_start, '%Y-%m-%d')
     end = datetime.strptime(date_end, '%Y-%m-%d')
     data = Daily(location, start, end)
     data = data.fetch()
-
     # Optional: enrich data with nearest weather station information
     stations = Stations()
     stations = stations.nearby(latitude, longitude)
@@ -52,7 +52,6 @@ def fetch_weather_data(latitude, longitude, date_start, date_end, units):
     if not station.empty:
         station_name = station.name.iloc[0]
         data['station_name'] = station_name
-
     # Replace NaN and infinite values with None to avoid JSON serialization issues
     data = data.replace([np.nan, np.inf, -np.inf], None)
     logging.debug(f"Weather data fetched: {data}")
@@ -157,19 +156,15 @@ def main():
         logging.debug(f"Sun and moon information: {sun_and_moon_info}")
 
         # Fetch weather data
-        date_start = config['date_start']
-        date_end = config['date_end']
-        units = config['units']
-        weather_data = fetch_weather_data(latitude, longitude, date_start, date_end, units)
+        weather_data = fetch_weather_data(latitude, longitude, config['date_start'], config['date_end'])
 
         # Generate log lines
         log_lines = generate_log_lines(weather_data, sun_and_moon_info, encounter_id, alias, config)
 
         # Send log lines to LogScale
         structured_data = [{"tags": {"host": "weatherhost", "source": "weatherdata"}, "events": [{"timestamp": event['@timestamp'], "attributes": event} for event in log_lines]}]
-        status_code, response_text = send_to_logscale(LOGSCALE_API_URL, config['logscale_api_token_case_study'], structured_data)
+        status_code, response_text = send_to_logscale(LOGSCALE_URL, config['logscale_api_token_case_study'], structured_data)
         logging.debug(f"Status Code: {status_code}, Response: {response_text}")
-        print(f"Status Code: {status_code}\nResponse: {response_text}")
     except Exception as e:
         logging.error(e)
 
