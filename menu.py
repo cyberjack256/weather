@@ -79,7 +79,27 @@ def validate_config(script_id):
 def run_script(script_id, script_name):
     if not validate_config(script_id):
         return
-    subprocess.run(['python3', script_name])
+    result = subprocess.run(['python3', script_name], capture_output=True, text=True)
+    print(result.stdout)
+    print(result.stderr)
+
+# Set up cron job
+def setup_cron_job():
+    cron_job = "0 * * * * /usr/bin/python3 /home/ec2-user/weather/05_log200_periodic_fetch.py\n"
+    cron_exists = False
+    cron_file = "/var/spool/cron/crontabs/root"
+    
+    if os.path.exists(cron_file):
+        with open(cron_file, 'r') as file:
+            if cron_job in file.read():
+                cron_exists = True
+    
+    if not cron_exists:
+        with open(cron_file, 'a') as file:
+            file.write(cron_job)
+        print("Cron job set to run every hour.")
+    else:
+        print("Cron job is already set.")
 
 # Main menu
 def main_menu():
@@ -98,6 +118,7 @@ Please select an option:
 7. Run script 02
 8. Run script 04
 9. Run script 05
+10. Set up cron job for script 05
 0. Exit
         """)
         choice = input("Enter your choice: ").strip()
@@ -124,6 +145,8 @@ Please select an option:
             run_script('04', '04_log200_case_study.py')
         elif choice == '9':
             run_script('05', '05_log200_periodic_fetch.py')
+        elif choice == '10':
+            setup_cron_job()
         elif choice == '0':
             break
         else:
