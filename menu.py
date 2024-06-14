@@ -59,7 +59,7 @@ def show_config(script_id):
 def set_config_field(field):
     config = load_config()
     example = FIELD_EXAMPLES.get(field, '')
-    new_value = input(f"Enter the value for {field} ({example}): ").strip()
+    new_value = input(f"Enter the value for {field} ({example}):\n").strip()
     config[field] = new_value
     save_config(config)
     print(f"Configuration updated: {field} set to {new_value}")
