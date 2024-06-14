@@ -1,110 +1,68 @@
 import json
-import random
-from datetime import datetime, timedelta
+import os
+from datetime import datetime
 import requests
 import logging
-import os
 
-# Set up logging
+# Configure logging
 logging.basicConfig(level=logging.DEBUG)
 
 # Set the base directory relative to the script location
 base_dir = os.path.dirname(__file__)
+config_path = os.path.join(base_dir, 'config.json')
 
 def load_config():
-    """
-    Load and validate the configuration from the config.json file.
-    Returns:
-        Dict[str, str]: The loaded configuration.
-    """
-    config_path = os.path.join(base_dir, 'config.json')
-    try:
-        with open(config_path, 'r') as file:
-            config = json.load(file)
-    except FileNotFoundError:
-        logging.error("Configuration file not found.")
-        raise
-    except json.JSONDecodeError:
-        logging.error("Error decoding JSON from the configuration file.")
-        raise
+    with open(config_path, 'r') as file:
+        return json.load(file)
 
-    if any(value == "REPLACEME" for value in config.values()):
-        raise ValueError("Please replace all 'REPLACEME' fields in the config file.")
+def save_config(config):
+    with open(config_path, 'w') as file:
+        json.dump(config, file, indent=4)
 
-    return config
+def prompt_for_value(prompt, hint):
+    value = input(f"{prompt} ({hint}): ")
+    return value
 
-def generate_raw_log(encounter_id, alias, units):
-    """
-    Generate a raw log message with random weather data.
-    Args:
-        encounter_id (str): The encounter ID.
-        alias (str): The alias.
-        units (str): The units of measurement, either 'imperial' or 'metric'.
-    Returns:
-        str: The generated raw log message.
-    """
-    timestamp = (datetime.utcnow() - timedelta(minutes=random.randint(1, 5))).isoformat() + "Z"
-    
-    if units == "imperial":
-        temperature_unit = "°F"
-        wind_speed_unit = "mph"
-        temperature = random.randint(14, 95)  # °F
-        wind_speed = random.randint(0, 62)  # mph
-    else:
-        temperature_unit = "°C"
-        wind_speed_unit = "km/h"
-        temperature = random.randint(-10, 35)  # °C
-        wind_speed = random.randint(0, 100)  # km/h
-
-    humidity = random.randint(20, 90)  # %
-    precipitation = random.choice([0, 1, 2, 5, 10, 20])  # mm
-
-    raw_log = f"[{timestamp}] Temp: {temperature}{temperature_unit}, Humidity: {humidity}%, Precipitation: {precipitation}mm, Wind Speed: {wind_speed}{wind_speed_unit}, Encounter ID: {encounter_id}, Alias: {alias}"
-    
-    return raw_log
-
-def send_to_logscale(logscale_api_url, logscale_api_token, raw_log):
-    """
-    Send raw log data to LogScale.
-    Args:
-        logscale_api_url (str): The LogScale API URL.
-        logscale_api_token (str): The LogScale API token.
-        raw_log (str): The raw log message.
-    Returns:
-        Tuple[int, str]: The HTTP status code and response text.
-    """
-    logging.info("Sending raw log data to LogScale...")
-    headers = {
-        "Authorization": f"Bearer {logscale_api_token}",
-        "Content-Type": "text/plain"
-    }
-    try:
-        response = requests.post(logscale_api_url, data=raw_log, headers=headers)
-        response.raise_for_status()
-        logging.info(f"Response from LogScale: Status Code: {response.status_code}, Response: {response.text}")
-        return response.status_code, response.text
-    except requests.RequestException as e:
-        logging.error(f"Failed to send raw log data to LogScale: {e}")
-        raise
+def validate_input(prompt, hint, validate_func):
+    while True:
+        value = prompt_for_value(prompt, hint)
+        if validate_func(value):
+            return value
+        else:
+            print(f"Invalid value. Please try again.")
 
 def main():
-    """Main function to load configuration, generate raw logs, and send them to LogScale."""
-    try:
-        config = load_config()
-        logscale_api_url = config['logscale_api_url'].replace("humio-structured", "raw")
-        logscale_api_token = config['logscale_api_token_raw']
-        encounter_id = config['encounter_id']
-        alias = config['alias']
-        units = config.get('units', 'metric')
+    config = load_config()
 
-        for _ in range(5):  # Generate 5 log entries
-            raw_log = generate_raw_log(encounter_id, alias, units)
-            logging.info(f"Generated raw log: {raw_log}")
-            status_code, response_text = send_to_logscale(logscale_api_url, logscale_api_token, raw_log)
-            logging.info(f"Status Code: {status_code}, Response: {response_text}")
-    except Exception as e:
-        logging.error("An error occurred: ", exc_info=True)
-        print(e)
+    # Check and prompt for required values if missing
+    if not config.get("alias"):
+        config["alias"] = validate_input("Enter alias", "e.g., racing-jack", lambda x: bool(x))
+    if not config.get("encounter_id"):
+        config["encounter_id"] = validate_input("Enter encounter ID", "e.g., jt30", lambda x: bool(x))
+    if not config.get("logscale_api_token_raw"):
+        config["logscale_api_token_raw"] = validate_input("Enter LogScale API Token (Raw)", "e.g., 7f51ecfe-71a5-4268-81d7-7f0c81c6105e", lambda x: bool(x))
+
+    save_config(config)
+
+    alias = config["alias"]
+    encounter_id = config["encounter_id"]
+    api_token = config["logscale_api_token_raw"]
+
+    # Your existing script logic here
+    logscale_api_url = config.get("logscale_api_url")
+    if not logscale_api_url:
+        logscale_api_url = validate_input("Enter LogScale API URL", "e.g., https://cloud.us.humio.com/api/v1/ingest/raw", lambda x: bool(x))
+
+    # Example raw data to send
+    raw_data = f"My raw Message generated at \"{datetime.utcnow().isoformat()}\""
+
+    # Send data to LogScale
+    headers = {
+        "Authorization": f"Bearer {api_token}",
+        "Content-Type": "application/json"
+    }
+    response = requests.post(logscale_api_url, data=raw_data, headers=headers)
+    logging.debug(f"Response from LogScale: Status Code: {response.status_code}, Response: {response.text}")
 
 if __name__ == "__main__":
     main()
