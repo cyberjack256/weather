@@ -170,13 +170,17 @@ Please select an option:
             field = list(FIELD_EXAMPLES.keys())[int(field_choice) - 1]
             set_config_field(field)
         elif choice == '6':
-            run_script('01', '01_log200_ingest_structured.py')
+            if validate_config('01'):
+                run_script('01', '01_log200_ingest_structured.py')
         elif choice == '7':
-            run_script('02', '02_log200_ingest_raw.py')
+            if validate_config('02'):
+                run_script('02', '02_log200_ingest_raw.py')
         elif choice == '8':
-            run_script('04', '04_log200_case_study.py')
+            if validate_config('04'):
+                run_script('04', '04_log200_case_study.py')
         elif choice == '9':
-            run_script('05', '05_log200_periodic_fetch.py')
+            if validate_config('05'):
+                run_script('05', '05_log200_periodic_fetch.py')
         elif choice == '10':
             setup_cron_job()
         elif choice == '11':
