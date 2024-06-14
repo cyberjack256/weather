@@ -8,27 +8,36 @@ from astral.sun import sun
 from astral.moon import phase
 from timezonefinder import TimezoneFinder
 from zoneinfo import ZoneInfo
-from meteostat import Point, Daily, Stations
 import pandas as pd
 import numpy as np
+from meteostat import Point, Daily, Stations
 
-# Configure logging
+# Set up logging
 logging.basicConfig(level=logging.DEBUG)
 
-# Set the base directory relative to the script location
-base_dir = os.path.dirname(__file__)
-
 CONFIG_FILE = 'config.json'
+REQUIRED_FIELDS = [
+    'logscale_api_token_case_study', 'encounter_id', 'alias',
+    'city_name', 'country_name', 'latitude', 'longitude', 'date_start', 'date_end', 'units'
+]
 LOGSCALE_URL = 'https://cloud.us.humio.com/api/v1/ingest/humio-structured'
 
-# Load and validate the configuration
+# Load configuration
 def load_config():
-    config_path = os.path.join(base_dir, CONFIG_FILE)
-    with open(config_path, 'r') as file:
-        config = json.load(file)
-    return config
+    if os.path.exists(CONFIG_FILE):
+        with open(CONFIG_FILE, 'r') as file:
+            return json.load(file)
+    return {}
 
-# Initialize TimezoneFinder
+# Validate configuration
+def validate_config():
+    config = load_config()
+    missing_fields = [field for field in REQUIRED_FIELDS if field not in config or config[field] == '']
+    if missing_fields:
+        print(f"\nMissing required fields: {', '.join(missing_fields)}")
+        return False
+    return True
+
 def get_timezone(latitude, longitude):
     tf = TimezoneFinder()
     tz_name = tf.timezone_at(lat=latitude, lng=longitude)
@@ -37,29 +46,26 @@ def get_timezone(latitude, longitude):
     else:
         raise Exception("Could not determine the timezone.")
 
-# Fetch weather data for the specified date range
-def fetch_weather_data(latitude, longitude, date_start, date_end):
-    logging.debug("Fetching weather data...")
+def fetch_weather_data(latitude, longitude, date_start, date_end, units):
     location = Point(latitude, longitude)
     start = datetime.strptime(date_start, '%Y-%m-%d')
     end = datetime.strptime(date_end, '%Y-%m-%d')
     data = Daily(location, start, end)
     data = data.fetch()
-    # Optional: enrich data with nearest weather station information
+
+    # Enrich data with nearest weather station information
     stations = Stations()
     stations = stations.nearby(latitude, longitude)
     station = stations.fetch(1)
     if not station.empty:
         station_name = station.name.iloc[0]
         data['station_name'] = station_name
+
     # Replace NaN and infinite values with None to avoid JSON serialization issues
     data = data.replace([np.nan, np.inf, -np.inf], None)
-    logging.debug(f"Weather data fetched: {data}")
     return data
 
-# Generate log lines
 def generate_log_lines(weather_data, sun_and_moon_info, encounter_id, alias, config):
-    logging.debug("Generating log lines...")
     log_lines = []
     for time, row in weather_data.iterrows():
         log_entry = {
@@ -109,64 +115,78 @@ def generate_log_lines(weather_data, sun_and_moon_info, encounter_id, alias, con
             }
         }
         log_lines.append(log_entry)
-    logging.debug(f"Generated log lines: {log_lines}")
     return log_lines
 
-# Send data to LogScale
-def send_to_logscale(logscale_api_url, logscale_api_token, data):
-    logging.debug("Sending data to LogScale...")
+def send_to_logscale(log_lines, logscale_api_token):
     headers = {
         "Authorization": f"Bearer {logscale_api_token}",
         "Content-Type": "application/json"
     }
-    response = requests.post(logscale_api_url, json=data, headers=headers)
-    logging.debug(f"Response from LogScale: Status Code: {response.status_code}, Response: {response.text}")
+    response = requests.post(LOGSCALE_URL, json=log_lines, headers=headers)
     return response.status_code, response.text
 
-# Main function
 def main():
-    try:
-        logging.debug("Starting script...")
-        config = load_config()
-        logging.debug(f"Config loaded: {config}")
-        latitude = float(config['latitude'])
-        longitude = float(config['longitude'])
-        alias = config['alias']
-        encounter_id = config['encounter_id']
+    if not validate_config():
+        return
 
-        # Get timezone
-        timezone = get_timezone(latitude, longitude)
-        logging.debug(f"Timezone found: {timezone}")
+    config = load_config()
+    logscale_api_token = config['logscale_api_token_case_study']
+    encounter_id = config['encounter_id']
+    alias = config['alias']
+    latitude = float(config['latitude'])
+    longitude = float(config['longitude'])
+    date_start = config['date_start']
+    date_end = config['date_end']
+    units = config['units']
 
-        # Fetch sun and moon data
-        city = LocationInfo(config['city_name'], config['country_name'], timezone, latitude, longitude)
-        date_specified = datetime.now()
-        s = sun(city.observer, date=date_specified, tzinfo=city.timezone)
-        moon_phase_value = phase(date_specified)
-        sun_and_moon_info = {
-            'sun_info': {
-                'dawn': s['dawn'].isoformat(),
-                'sunrise': s['sunrise'].isoformat(),
-                'noon': s['noon'].isoformat(),
-                'sunset': s['sunset'].isoformat(),
-                'dusk': s['dusk'].isoformat(),
-            },
-            'moon_phase': moon_phase_value
-        }
-        logging.debug(f"Sun and moon information: {sun_and_moon_info}")
+    # Get timezone
+    timezone = get_timezone(latitude, longitude)
 
-        # Fetch weather data
-        weather_data = fetch_weather_data(latitude, longitude, config['date_start'], config['date_end'])
+    # Fetch sun and moon data
+    city = LocationInfo(config['city_name'], config['country_name'], timezone, latitude, longitude)
+    date_specified = datetime.strptime(date_start, '%Y-%m-%d')
+    s = sun(city.observer, date=date_specified, tzinfo=city.timezone)
+    moon_phase_value = phase(date_specified)
+    sun_and_moon_info = {
+        'sun_info': {
+            'dawn': s['dawn'].isoformat(),
+            'sunrise': s['sunrise'].isoformat(),
+            'noon': s['noon'].isoformat(),
+            'sunset': s['sunset'].isoformat(),
+            'dusk': s['dusk'].isoformat(),
+        },
+        'moon_phase': moon_phase_value
+    }
 
-        # Generate log lines
-        log_lines = generate_log_lines(weather_data, sun_and_moon_info, encounter_id, alias, config)
+    # Fetch weather data
+    weather_data = fetch_weather_data(latitude, longitude, date_start, date_end, units)
 
-        # Send log lines to LogScale
-        structured_data = [{"tags": {"host": "weatherhost", "source": "weatherdata"}, "events": [{"timestamp": event['@timestamp'], "attributes": event} for event in log_lines]}]
-        status_code, response_text = send_to_logscale(LOGSCALE_URL, config['logscale_api_token_case_study'], structured_data)
-        logging.debug(f"Status Code: {status_code}, Response: {response_text}")
-    except Exception as e:
-        logging.error(e)
+    # Generate log lines
+    log_lines = generate_log_lines(weather_data, sun_and_moon_info, encounter_id, alias, config)
+
+    # Display an example log line for user reference
+    example_log_line = json.dumps(log_lines[0], indent=4)
+    print("\nExample Log Line:")
+    print(example_log_line)
+
+    # Description of the log line structure
+    print("\nDescription:")
+    print("The log line includes various details such as:")
+    print("- Timestamp (@timestamp)")
+    print("- Geolocation (city_name, country_name, latitude, longitude)")
+    print("- Observer information (alias, id)")
+    print("- Weather details (temperature, humidity, wind speed, etc.)")
+    print("- Sun and moon information (sunrise, sunset, moon phase)")
+    print("\nThe structured data is ingested into LogScale using the humio-structured API endpoint.")
+
+    # How to search for the data in LogScale
+    print("\nHow to Search for Your Data in LogScale:")
+    print(f"1. Go to your LogScale view and set the time range from {date_start} to {date_end}.")
+    print(f"2. Use the following query to search for your data:")
+    print(f"observer.id={encounter_id} AND observer.alias={alias}")
+
+    status_code, response_text = send_to_logscale(log_lines, logscale_api_token)
+    logging.debug(f"Response from LogScale: Status Code: {status_code}, Response: {response_text}")
 
 if __name__ == "__main__":
     main()
