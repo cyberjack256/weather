@@ -1,88 +1,90 @@
 import json
 import os
+import logging
 import requests
 from datetime import datetime
-import logging
 
-# Configure logging
+# Set up logging
 logging.basicConfig(level=logging.DEBUG)
 
-# Set the base directory relative to the script location
-base_dir = os.path.dirname(__file__)
+CONFIG_FILE = 'config.json'
 
-# Load and validate the configuration
+REQUIRED_FIELDS = ['logscale_api_token_structured', 'encounter_id', 'alias']
+
+LOGSCALE_URL = 'https://cloud.us.humio.com/api/v1/ingest/humio-structured'
+
+# Load configuration
 def load_config():
-    config_path = os.path.join(base_dir, 'config.json')
-    with open(config_path, 'r') as file:
-        config = json.load(file)
-    if any(value == "REPLACEME" for value in config.values()):
-        raise ValueError("Please replace all 'REPLACEME' fields in the config file.")
-    return config
+    if os.path.exists(CONFIG_FILE):
+        with open(CONFIG_FILE, 'r') as file:
+            return json.load(file)
+    return {}
 
-# Send data to LogScale
-def send_to_logscale(logscale_api_url, logscale_api_token, data):
+# Validate configuration
+def validate_config():
+    config = load_config()
+    missing_fields = [field for field in REQUIRED_FIELDS if field not in config or config[field] == '']
+    if missing_fields:
+        print(f"\nMissing required fields: {', '.join(missing_fields)}")
+        return False
+    return True
+
+# Generate a sample log line
+def generate_sample_log(encounter_id, alias):
+    timestamp = datetime.utcnow().isoformat() + "Z"
+    log_line = {
+        "tags": {
+            "host": "server1",
+            "source": "application.log"
+        },
+        "events": [
+            {
+                "timestamp": timestamp,
+                "attributes": {
+                    "encounter_id": encounter_id,
+                    "alias": alias,
+                    "temperature": 22.5,
+                    "humidity": 60
+                }
+            }
+        ]
+    }
+    return log_line
+
+# Send log data to LogScale
+def send_to_logscale(log_data, logscale_api_token):
     headers = {
         "Authorization": f"Bearer {logscale_api_token}",
         "Content-Type": "application/json"
     }
-    response = requests.post(logscale_api_url, json=data, headers=headers)
-    logging.debug(f"Response from LogScale: Status Code: {response.status_code}, Response: {response.text}")
+    response = requests.post(LOGSCALE_URL, json=log_data, headers=headers)
     return response.status_code, response.text
 
 # Main function
 def main():
-    try:
-        logging.debug("Starting script...")
-        config = load_config()
-        logging.debug(f"Config loaded: {config}")
-        
-        # Example log data
-        example_data = [
-            {
-                "tags": {
-                    "host": "weatherhost",
-                    "source": "weatherdata"
-                },
-                "events": [
-                    {
-                        "timestamp": "2024-06-14T12:00:00+00:00",
-                        "attributes": {
-                            "observer.id": config["encounter_id"],
-                            "observer.alias": config["alias"],
-                            "weather.temperature": 25.6,
-                            "weather.humidity": "60%",
-                            "weather.precipitation": "0mm",
-                            "weather.wind_speed": "15km/h"
-                        }
-                    }
-                ]
-            }
-        ]
+    if not validate_config():
+        return
 
-        # Send log data to LogScale
-        status_code, response_text = send_to_logscale(
-            config['logscale_api_url'],
-            config['logscale_api_token_structured'],
-            example_data
-        )
+    config = load_config()
+    logscale_api_token = config['logscale_api_token_structured']
+    encounter_id = config['encounter_id']
+    alias = config['alias']
 
-        print(f"Status Code: {status_code}, Response: {response_text}")
-        
-        # Provide guidance to students
-        print("\n### Important: Read the Output ###\n")
-        print("Sample Log Entry Sent:")
-        print(json.dumps(example_data, indent=4))
-        print("\nLog Entry Structure:")
-        print("The log entry includes fields such as 'timestamp', 'observer.id', 'observer.alias', 'weather.temperature', 'weather.humidity', 'weather.precipitation', and 'weather.wind_speed'.")
-        print("\nUsing the LogScale Structured API:")
-        print("The LogScale Structured API is used to ingest structured data directly. This means that the data being sent already has a predefined structure and does not require additional parsing.")
-        print("\nSearch Hint:")
-        print("To search for your data in LogScale, use the following query in your sandbox view:")
-        print(f'observer.id = "{config["encounter_id"]}" AND observer.alias = "{config["alias"]}"')
-        print("Make sure to adjust the time range to include the time when the logs were sent (e.g., '1m', '7d', etc.).")
-        
-    except Exception as e:
-        logging.error(e)
+    log_data = generate_sample_log(encounter_id, alias)
+    
+    # Display a sample log line for user reference
+    print("\nSample log line that will be sent:")
+    print(json.dumps(log_data, indent=4))
+
+    print("\nDescription:")
+    print("This script generates a structured log line with weather data attributes.")
+    print("It then sends the log line to LogScale using the structured ingest API.")
+    print("You can search for your data in LogScale using the following query:")
+    print(f"observer.id={encounter_id} AND observer.alias={alias}")
+    print("\nMake sure to set the time range for the logs appropriately in your LogScale view.")
+
+    status_code, response_text = send_to_logscale(log_data, logscale_api_token)
+    logging.debug(f"Response from LogScale: Status Code: {status_code}, Response: {response_text}")
 
 if __name__ == "__main__":
     main()
