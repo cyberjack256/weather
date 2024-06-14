@@ -169,9 +169,15 @@ def main():
 
     # Fetch weather data
     weather_data = fetch_weather_data(latitude, longitude, date_start, date_end, units)
+    if weather_data.empty:
+        logging.error("No weather data fetched.")
+        return
 
     # Generate log lines
     log_lines = generate_log_lines(weather_data, encounter_id, alias, config)
+    if not log_lines:
+        logging.error("No log lines generated.")
+        return
 
     # Display an example log line for user reference
     example_log_line = json.dumps(log_lines[0], indent=4)
