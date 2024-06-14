@@ -4,6 +4,14 @@ import subprocess
 
 LOGSCALE_API_URL = "https://cloud.us.humio.com/api/v1/ingest/humio-structured"
 
+# Define configuration fields for each script
+config_fields = {
+    "01_log200_ingest_structured.py": ["alias", "encounter_id", "logscale_api_token_structured"],
+    "02_log200_ingest_raw.py": ["alias", "encounter_id", "logscale_api_token_raw"],
+    "04_log200_case_study.py": ["alias", "encounter_id", "logscale_api_token_case_study", "city_name", "country_name", "latitude", "longitude", "date_start", "date_end", "units"],
+    "05_log200_periodic_fetch.py": ["alias", "encounter_id", "logscale_api_token_case_study", "city_name", "country_name", "latitude", "longitude", "extreme_field", "high"]
+}
+
 # Clear screen function
 def clear_screen():
     os.system('clear' if os.name == 'posix' else 'cls')
@@ -63,15 +71,47 @@ def run_script(script_name):
     print(result.stderr)
     input("\nPress Enter to continue...")
 
+# Check and set cron job
+def check_and_set_cron(script_name):
+    cron_job = f"0 * * * * /usr/bin/python3 /home/ec2-user/weather/{script_name}"
+    result = subprocess.run(['crontab', '-l'], capture_output=True, text=True)
+    if cron_job in result.stdout:
+        overwrite = input("Cron job is already set. Do you want to overwrite it? (yes/no): ")
+        if overwrite.lower() != 'yes':
+            return
+    subprocess.run(f'(crontab -l; echo "{cron_job}") | crontab -', shell=True)
+    print("Cron job set successfully.")
+    input("\nPress Enter to continue...")
+
+# Run periodic fetch with extreme values
+def run_periodic_fetch():
+    config = load_config()
+    config_fields_required = ["alias", "encounter_id", "logscale_api_token_case_study", "city_name", "country_name", "latitude", "longitude", "extreme_field", "high"]
+    prompt_for_required_fields(config_fields_required)
+
+    # Check if running as cron job
+    run_as_cron = input("Do you want to set this script to run every hour as a cron job? (yes/no): ")
+    if run_as_cron.lower() == 'yes':
+        check_and_set_cron("05_log200_periodic_fetch.py")
+        # Reset extreme fields after setting cron job
+        config["extreme_field"] = "null"
+        config["high"] = "null"
+        save_config(config)
+        return
+
+    # Run once with extreme values
+    result = subprocess.run(['python3', '05_log200_periodic_fetch.py'], capture_output=True, text=True)
+    print(result.stdout)
+    print(result.stderr)
+
+    # Reset extreme fields after running
+    config["extreme_field"] = "null"
+    config["high"] = "null"
+    save_config(config)
+    input("\nPress Enter to continue...")
+
 # Menu options
 def main_menu():
-    config_fields = {
-        "01_log200_ingest_structured.py": ["alias", "encounter_id", "logscale_api_token_structured"],
-        "02_log200_ingest_raw.py": ["alias", "encounter_id", "logscale_api_token_raw"],
-        "04_log200_case_study.py": ["alias", "encounter_id", "logscale_api_token_case_study", "city_name", "country_name", "latitude", "longitude", "date_start", "date_end", "units"],
-        "05_log200_periodic_fetch.py": ["alias", "encounter_id", "logscale_api_token_case_study", "city_name", "country_name", "latitude", "longitude", "extreme_field", "high"]
-    }
-
     while True:
         clear_screen()
         print("Weather Data Ingestion Menu\n")
@@ -118,7 +158,7 @@ def main_menu():
         elif choice == "8":
             run_script("04_log200_case_study.py")
         elif choice == "9":
-            run_script("05_log200_periodic_fetch.py")
+            run_periodic_fetch()
         elif choice == "10":
             break
         else:
