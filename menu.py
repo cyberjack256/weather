@@ -143,13 +143,14 @@ def main_menu():
                          config_fields["04_log200_case_study.py"] + \
                          config_fields["05_log200_periodic_fetch.py"]
             unique_fields = list(set(all_fields))
-            for field in unique_fields:
-                print(f" - {field}")
-            field = input("\nEnter the field to set: ")
-            if field in unique_fields:
-                set_option(field)
+            unique_fields.sort()  # Sort fields alphabetically for easier navigation
+            for idx, field in enumerate(unique_fields, 1):
+                print(f"{idx}. {field}")
+            field_idx = input("\nEnter the number of the field to set: ")
+            if field_idx.isdigit() and 1 <= int(field_idx) <= len(unique_fields):
+                set_option(unique_fields[int(field_idx) - 1])
             else:
-                print("Invalid field name.")
+                print("Invalid field number.")
                 input("\nPress Enter to continue...")
         elif choice == "6":
             run_script("01_log200_ingest_structured.py")
