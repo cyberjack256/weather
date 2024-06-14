@@ -76,10 +76,13 @@ def validate_config(script_id):
 # Run script
 def run_script(script_id, script_name):
     if not validate_config(script_id):
+        print("\nPlease set the missing configuration fields using option 5.")
         return
     result = subprocess.run(['python3', script_name], capture_output=True, text=True)
-    print(result.stdout)
-    print(result.stderr)
+    with open('script_output.txt', 'w') as f:
+        f.write(result.stdout)
+        f.write(result.stderr)
+    subprocess.run(['less', 'script_output.txt'])
 
 # Set up cron job
 def setup_cron_job():
@@ -103,6 +106,31 @@ def setup_cron_job():
     else:
         print("Cron job is already set.")
 
+# Show cron job
+def show_cron_job():
+    try:
+        existing_crontab = subprocess.check_output(['sudo', 'crontab', '-l', '-u', 'ec2-user']).decode()
+        print(f"Current crontab for ec2-user:\n{existing_crontab}")
+    except subprocess.CalledProcessError:
+        print("No crontab set for ec2-user.")
+
+# Delete cron job
+def delete_cron_job():
+    try:
+        existing_crontab = subprocess.check_output(['sudo', 'crontab', '-l', '-u', 'ec2-user']).decode()
+        cron_job = "0 * * * * /usr/bin/python3 /home/ec2-user/weather/05_log200_periodic_fetch.py\n"
+        if cron_job in existing_crontab:
+            new_crontab = existing_crontab.replace(cron_job, "")
+            with open('crontab_tmp', 'w') as f:
+                f.write(new_crontab)
+            subprocess.check_call(['sudo', 'crontab', 'crontab_tmp', '-u', 'ec2-user'])
+            os.remove('crontab_tmp')
+            print("Cron job deleted.")
+        else:
+            print("Cron job not found.")
+    except subprocess.CalledProcessError:
+        print("No crontab set for ec2-user.")
+
 # Main menu
 def main_menu():
     while True:
@@ -121,6 +149,8 @@ Please select an option:
 8. Run 04_log200_case_study.py
 9. Run 05_log200_periodic_fetch.py
 10. Set up cron job for 05_log200_periodic_fetch.py
+11. Show current cron job for 05_log200_periodic_fetch.py
+12. Delete cron job for 05_log200_periodic_fetch.py
 0. Exit
         """)
         choice = input("Enter your choice: ").strip()
@@ -149,6 +179,10 @@ Please select an option:
             run_script('05', '05_log200_periodic_fetch.py')
         elif choice == '10':
             setup_cron_job()
+        elif choice == '11':
+            show_cron_job()
+        elif choice == '12':
+            delete_cron_job()
         elif choice == '0':
             break
         else:
