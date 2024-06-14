@@ -2,8 +2,6 @@ import json
 import os
 import logging
 import subprocess
-import random
-from datetime import datetime, timedelta
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG)
@@ -109,16 +107,16 @@ def main_menu():
 Welcome to the Weather Data Ingest Menu
 Please select an option:
 
-1. Show options for script 01
-2. Show options for script 02
-3. Show options for script 04
-4. Show options for script 05
+1. Show options for 01_log200_ingest_structured.py (Structured Data)
+2. Show options for 02_log200_ingest_raw.py (Unstructured Data)
+3. Show options for 04_log200_case_study.py (Historical Data)
+4. Show options for 05_log200_periodic_fetch.py (Periodic Fetch)
 5. Set a configuration field
-6. Run script 01
-7. Run script 02
-8. Run script 04
-9. Run script 05
-10. Set up cron job for script 05
+6. Run 01_log200_ingest_structured.py
+7. Run 02_log200_ingest_raw.py
+8. Run 04_log200_case_study.py
+9. Run 05_log200_periodic_fetch.py
+10. Set up cron job for 05_log200_periodic_fetch.py
 0. Exit
         """)
         choice = input("Enter your choice: ").strip()
@@ -132,11 +130,11 @@ Please select an option:
         elif choice == '4':
             show_config('05')
         elif choice == '5':
-            field = input(f"Enter the field name to set ({', '.join(FIELD_EXAMPLES.keys())}): ").strip()
-            if field in FIELD_EXAMPLES:
-                set_config_field(field)
-            else:
-                print("Invalid field name.")
+            for i, field in enumerate(FIELD_EXAMPLES.keys(), 1):
+                print(f"{i}. {field}")
+            field_choice = input("\nEnter the number of the field you want to set: ").strip()
+            field = list(FIELD_EXAMPLES.keys())[int(field_choice) - 1]
+            set_config_field(field)
         elif choice == '6':
             run_script('01', '01_log200_ingest_structured.py')
         elif choice == '7':
