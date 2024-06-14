@@ -1,5 +1,6 @@
 import os
 import json
+import subprocess
 
 LOGSCALE_API_URL = "https://cloud.us.humio.com/api/v1/ingest/humio-structured"
 
@@ -54,6 +55,14 @@ def prompt_for_required_fields(required_fields):
         config[field] = prompt_for_input(field, config.get(field, 'REPLACEME'))
     save_config(config)
 
+# Run script and print response
+def run_script(script_name):
+    prompt_for_required_fields(config_fields[script_name])
+    result = subprocess.run(['python3', script_name], capture_output=True, text=True)
+    print(result.stdout)
+    print(result.stderr)
+    input("\nPress Enter to continue...")
+
 # Menu options
 def main_menu():
     config_fields = {
@@ -103,17 +112,13 @@ def main_menu():
                 print("Invalid field name.")
                 input("\nPress Enter to continue...")
         elif choice == "6":
-            prompt_for_required_fields(config_fields["01_log200_ingest_structured.py"])
-            os.system('python3 01_log200_ingest_structured.py')
+            run_script("01_log200_ingest_structured.py")
         elif choice == "7":
-            prompt_for_required_fields(config_fields["02_log200_ingest_raw.py"])
-            os.system('python3 02_log200_ingest_raw.py')
+            run_script("02_log200_ingest_raw.py")
         elif choice == "8":
-            prompt_for_required_fields(config_fields["04_log200_case_study.py"])
-            os.system('python3 04_log200_case_study.py')
+            run_script("04_log200_case_study.py")
         elif choice == "9":
-            prompt_for_required_fields(config_fields["05_log200_periodic_fetch.py"])
-            os.system('python3 05_log200_periodic_fetch.py')
+            run_script("05_log200_periodic_fetch.py")
         elif choice == "10":
             break
         else:
