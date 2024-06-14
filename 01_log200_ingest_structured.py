@@ -1,16 +1,16 @@
 import json
 import os
-import logging
+import random
 import requests
-from datetime import datetime
+from datetime import datetime, timedelta
+from typing import Dict, Any
 
 # Set up logging
+import logging
 logging.basicConfig(level=logging.DEBUG)
 
 CONFIG_FILE = 'config.json'
-
 REQUIRED_FIELDS = ['logscale_api_token_structured', 'encounter_id', 'alias']
-
 LOGSCALE_URL = 'https://cloud.us.humio.com/api/v1/ingest/humio-structured'
 
 # Load configuration
@@ -29,38 +29,56 @@ def validate_config():
         return False
     return True
 
-# Generate a sample log line
-def generate_sample_log(encounter_id, alias):
-    timestamp = datetime.utcnow().isoformat() + "Z"
-    log_line = {
-        "tags": {
-            "host": "server1",
-            "source": "application.log"
-        },
-        "events": [
-            {
-                "timestamp": timestamp,
-                "attributes": {
-                    "encounter_id": encounter_id,
-                    "alias": alias,
-                    "temperature": 22.5,
-                    "humidity": 60
-                }
-            }
-        ]
-    }
-    return log_line
+def generate_weather_event(encounter_id: str, alias: str, units: str = "metric") -> Dict[str, Any]:
+    """
+    Generate a weather event with random data.
+    Args:
+        encounter_id (str): The encounter ID for the event.
+        alias (str): The alias for the event.
+        units (str): The units of measurement, either 'imperial' or 'metric'.
+    Returns:
+        Dict[str, Any]: The generated weather event data.
+    """
+    # Generate a timestamp for the event
+    timestamp = (datetime.now() - timedelta(days=random.randint(1, 6))).isoformat() + 'Z'
 
-# Send log data to LogScale
-def send_to_logscale(log_data, logscale_api_token):
+    temperature = random.randint(-10, 35)  # °C
+    wind_speed = random.randint(0, 100)  # km/h
+
+    event_data = {
+        "message": f"Weather update at timestamp {timestamp}",
+        "temperature": temperature,
+        "humidity_percentage": random.randint(20, 90),  # %
+        "precipitation": f"{random.choice([0, 1, 2, 5, 10, 20])} mm",
+        "wind_speed": wind_speed
+    }
+
+    # Create JSON event in the format expected by LogScale
+    json_event = {
+        "timestamp": timestamp,
+        "attributes": {
+            "temperature": event_data["temperature"],
+            "humidity_percentage": event_data["humidity_percentage"],
+            "precipitation": event_data["precipitation"],
+            "wind_speed": event_data["wind_speed"],
+            "message": event_data["message"],
+            "source": "/home/ec2-user/var/log/weather.log",
+            "sourcetype": "weatherdata",
+            "env": "prod",
+            "observer.id": encounter_id,
+            "observer.alias": alias
+        }
+    }
+    return json_event
+
+def send_to_logscale(logscale_api_token, event):
     headers = {
         "Authorization": f"Bearer {logscale_api_token}",
         "Content-Type": "application/json"
     }
-    response = requests.post(LOGSCALE_URL, json=log_data, headers=headers)
+    response = requests.post(LOGSCALE_URL, json=[event], headers=headers)
     return response.status_code, response.text
 
-# Main function
 def main():
     if not validate_config():
         return
@@ -70,20 +88,34 @@ def main():
     encounter_id = config['encounter_id']
     alias = config['alias']
 
-    log_data = generate_sample_log(encounter_id, alias)
-    
-    # Display a sample log line for user reference
-    print("\nSample log line that will be sent:")
-    print(json.dumps(log_data, indent=4))
+    # Generate weather event
+    weather_event = generate_weather_event(encounter_id, alias)
 
+    # Display an example log line for user reference
+    example_log_line = json.dumps(weather_event, indent=4)
+    print("\nExample Log Line:")
+    print(example_log_line)
+
+    # Description of the log line structure
     print("\nDescription:")
-    print("This script generates a structured log line with weather data attributes.")
-    print("It then sends the log line to LogScale using the structured ingest API.")
-    print("You can search for your data in LogScale using the following query:")
-    print(f"observer.id={encounter_id} AND observer.alias={alias}")
-    print("\nMake sure to set the time range for the logs appropriately in your LogScale view.")
+    print("The log line includes various details such as:")
+    print("- Timestamp (timestamp)")
+    print("- Temperature (temperature)")
+    print("- Humidity Percentage (humidity_percentage)")
+    print("- Precipitation (precipitation)")
+    print("- Wind Speed (wind_speed)")
+    print("- Message (message)")
+    print("- Observer ID (observer.id)")
+    print("- Observer Alias (observer.alias)")
+    print("\nThe structured data is ingested into LogScale using the humio-structured API endpoint.")
 
-    status_code, response_text = send_to_logscale(log_data, logscale_api_token)
+    # How to search for the data in LogScale
+    print("\nHow to Search for Your Data in LogScale:")
+    print(f"1. Go to your LogScale view and set the time range from the past week.")
+    print(f"2. Use the following query to search for your data:")
+    print(f"observer.id={encounter_id} AND observer.alias={alias}")
+
+    status_code, response_text = send_to_logscale(logscale_api_token, weather_event)
     logging.debug(f"Response from LogScale: Status Code: {status_code}, Response: {response_text}")
 
 if __name__ == "__main__":
