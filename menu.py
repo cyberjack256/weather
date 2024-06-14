@@ -10,6 +10,8 @@ logging.basicConfig(level=logging.DEBUG)
 
 CONFIG_FILE = 'config.json'
 
+LOGSCALE_URL = 'https://cloud.us.humio.com/api/v1/ingest/humio-structured'
+
 REQUIRED_FIELDS = {
     '01': ['logscale_api_token_structured', 'encounter_id', 'alias'],
     '02': ['logscale_api_token_raw', 'encounter_id', 'alias'],
