@@ -67,7 +67,7 @@ def set_config_field(field):
 # Validate configuration
 def validate_config(script_id):
     config = load_config()
-    missing_fields = [field for field in REQUIRED_FIELDS[script_id] if field not in config or config[field] == '']
+    missing_fields = [field for field in REQUIRED_FIELDS[script_id] if field not in config or config[field] == '' or config[field] == 'REPLACEME']
     if missing_fields:
         print(f"\nMissing required fields for script {script_id}: {', '.join(missing_fields)}")
         return False
@@ -172,15 +172,23 @@ Please select an option:
         elif choice == '6':
             if validate_config('01'):
                 run_script('01', '01_log200_ingest_structured.py')
+            else:
+                print("\nPlease set the missing configuration fields using option 5.")
         elif choice == '7':
             if validate_config('02'):
                 run_script('02', '02_log200_ingest_raw.py')
+            else:
+                print("\nPlease set the missing configuration fields using option 5.")
         elif choice == '8':
             if validate_config('04'):
                 run_script('04', '04_log200_case_study.py')
+            else:
+                print("\nPlease set the missing configuration fields using option 5.")
         elif choice == '9':
             if validate_config('05'):
                 run_script('05', '05_log200_periodic_fetch.py')
+            else:
+                print("\nPlease set the missing configuration fields using option 5.")
         elif choice == '10':
             setup_cron_job()
         elif choice == '11':
