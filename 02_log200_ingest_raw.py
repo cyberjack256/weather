@@ -49,9 +49,7 @@ def main():
     api_token = config["logscale_api_token_raw"]
 
     # Your existing script logic here
-    logscale_api_url = config.get("logscale_api_url")
-    if not logscale_api_url:
-        logscale_api_url = validate_input("Enter LogScale API URL", "e.g., https://cloud.us.humio.com/api/v1/ingest/raw", lambda x: bool(x))
+    logscale_api_url = "https://cloud.us.humio.com/api/v1/ingest/raw"
 
     # Example raw data to send
     raw_data = f"My raw Message generated at \"{datetime.utcnow().isoformat()}\""
