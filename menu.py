@@ -1,169 +1,133 @@
-import os
 import json
+import os
+import logging
 import subprocess
+import random
+from datetime import datetime, timedelta
 
-LOGSCALE_API_URL = "https://cloud.us.humio.com/api/v1/ingest/humio-structured"
+# Set up logging
+logging.basicConfig(level=logging.DEBUG)
 
-# Define configuration fields for each script
-config_fields = {
-    "01_log200_ingest_structured.py": ["alias", "encounter_id", "logscale_api_token_structured"],
-    "02_log200_ingest_raw.py": ["alias", "encounter_id", "logscale_api_token_raw"],
-    "04_log200_case_study.py": ["alias", "encounter_id", "logscale_api_token_case_study", "city_name", "country_name", "latitude", "longitude", "date_start", "date_end", "units"],
-    "05_log200_periodic_fetch.py": ["alias", "encounter_id", "logscale_api_token_case_study", "city_name", "country_name", "latitude", "longitude", "extreme_field", "high"]
+CONFIG_FILE = 'config.json'
+
+REQUIRED_FIELDS = {
+    '01': ['logscale_api_token_structured', 'encounter_id', 'alias'],
+    '02': ['logscale_api_token_raw', 'encounter_id', 'alias'],
+    '04': ['logscale_api_token_case_study', 'city_name', 'country_name', 'latitude', 'longitude', 'date_start', 'date_end', 'encounter_id', 'alias'],
+    '05': ['logscale_api_token_case_study', 'city_name', 'country_name', 'latitude', 'longitude', 'extreme_field', 'high', 'encounter_id', 'alias']
 }
 
-# Clear screen function
-def clear_screen():
-    os.system('clear' if os.name == 'posix' else 'cls')
+# Field examples
+FIELD_EXAMPLES = {
+    'logscale_api_token_structured': 'e.g., 7f51ecfe-71a5-4268-81d7-7f0c81c6105d',
+    'logscale_api_token_raw': 'e.g., 7f51ecfe-71a5-4268-81d7-7f0c81c6105e',
+    'logscale_api_token_case_study': 'e.g., 7f51ecfe-71a5-4268-81d7-7f0c81c6105f',
+    'city_name': 'e.g., Ann Arbor',
+    'country_name': 'e.g., US',
+    'latitude': 'e.g., 42.2808',
+    'longitude': 'e.g., -83.7430',
+    'date_start': 'e.g., 2023-04-01',
+    'date_end': 'e.g., 2024-04-01',
+    'encounter_id': 'e.g., jt30',
+    'alias': 'e.g., racing-jack',
+    'units': 'e.g., metric or imperial',
+    'extreme_field': 'e.g., temperature',
+    'high': 'e.g., true or false'
+}
 
 # Load configuration
 def load_config():
-    with open('config.json', 'r') as file:
-        return json.load(file)
+    if os.path.exists(CONFIG_FILE):
+        with open(CONFIG_FILE, 'r') as file:
+            return json.load(file)
+    return {}
 
 # Save configuration
 def save_config(config):
-    with open('config.json', 'w') as file:
+    with open(CONFIG_FILE, 'w') as file:
         json.dump(config, file, indent=4)
 
-# Show options
-def show_options(script_name, required_fields):
+# Show current configuration
+def show_config(script_id):
     config = load_config()
-    print(f"\nCurrent configuration for {script_name}:")
-    for field in required_fields:
-        print(f"{field}: {config.get(field, 'REPLACEME')}")
-    input("\nPress Enter to continue...")
+    print(f"\nCurrent configuration for script {script_id}:")
+    for field in REQUIRED_FIELDS[script_id]:
+        value = config.get(field, 'Not set')
+        print(f"{field}: {value}")
 
-# Set option
-def set_option(field):
+# Set configuration field
+def set_config_field(field):
     config = load_config()
-    current_value = config.get(field, 'REPLACEME')
-    clear_screen()
-    print(f"Current value for {field}: {current_value}")
-    new_value = input(f"Enter new value for {field}: ")
-    if new_value:
-        config[field] = new_value
-        save_config(config)
-        print(f"{field} updated successfully.")
-    else:
-        print(f"{field} not updated.")
-    input("\nPress Enter to continue...")
-
-# Validate and prompt for input
-def prompt_for_input(prompt, current_value):
-    clear_screen()
-    print(f"Current value: {current_value}")
-    value = input(f"Enter new value for {prompt}: ")
-    return value if value else current_value
-
-# Prompt for required fields
-def prompt_for_required_fields(required_fields):
-    config = load_config()
-    for field in required_fields:
-        config[field] = prompt_for_input(field, config.get(field, 'REPLACEME'))
+    example = FIELD_EXAMPLES.get(field, '')
+    new_value = input(f"Enter the value for {field} ({example}): ").strip()
+    config[field] = new_value
     save_config(config)
+    print(f"Configuration updated: {field} set to {new_value}")
 
-# Run script and print response
-def run_script(script_name):
-    prompt_for_required_fields(config_fields[script_name])
-    result = subprocess.run(['python3', script_name], capture_output=True, text=True)
-    print(result.stdout)
-    print(result.stderr)
-    input("\nPress Enter to continue...")
-
-# Check and set cron job
-def check_and_set_cron(script_name):
-    cron_job = f"0 * * * * /usr/bin/python3 /home/ec2-user/weather/{script_name}"
-    result = subprocess.run(['crontab', '-l'], capture_output=True, text=True)
-    if cron_job in result.stdout:
-        overwrite = input("Cron job is already set. Do you want to overwrite it? (yes/no): ")
-        if overwrite.lower() != 'yes':
-            return
-    subprocess.run(f'(crontab -l; echo "{cron_job}") | crontab -', shell=True)
-    print("Cron job set successfully.")
-    input("\nPress Enter to continue...")
-
-# Run periodic fetch with extreme values
-def run_periodic_fetch():
+# Validate configuration
+def validate_config(script_id):
     config = load_config()
-    config_fields_required = ["alias", "encounter_id", "logscale_api_token_case_study", "city_name", "country_name", "latitude", "longitude", "extreme_field", "high"]
-    prompt_for_required_fields(config_fields_required)
+    missing_fields = [field for field in REQUIRED_FIELDS[script_id] if field not in config or config[field] == '']
+    if missing_fields:
+        print(f"\nMissing required fields for script {script_id}: {', '.join(missing_fields)}")
+        return False
+    return True
 
-    # Check if running as cron job
-    run_as_cron = input("Do you want to set this script to run every hour as a cron job? (yes/no): ")
-    if run_as_cron.lower() == 'yes':
-        check_and_set_cron("05_log200_periodic_fetch.py")
-        # Reset extreme fields after setting cron job
-        config["extreme_field"] = "null"
-        config["high"] = "null"
-        save_config(config)
+# Run script
+def run_script(script_id, script_name):
+    if not validate_config(script_id):
         return
+    subprocess.run(['python3', script_name])
 
-    # Run once with extreme values
-    result = subprocess.run(['python3', '05_log200_periodic_fetch.py'], capture_output=True, text=True)
-    print(result.stdout)
-    print(result.stderr)
-
-    # Reset extreme fields after running
-    config["extreme_field"] = "null"
-    config["high"] = "null"
-    save_config(config)
-    input("\nPress Enter to continue...")
-
-# Menu options
+# Main menu
 def main_menu():
     while True:
-        clear_screen()
-        print("Weather Data Ingestion Menu\n")
-        print("1. Show options for 01_log200_ingest_structured.py")
-        print("2. Show options for 02_log200_ingest_raw.py")
-        print("3. Show options for 04_log200_case_study.py")
-        print("4. Show options for 05_log200_periodic_fetch.py")
-        print("5. Set individual option")
-        print("6. Run 01_log200_ingest_structured.py")
-        print("7. Run 02_log200_ingest_raw.py")
-        print("8. Run 04_log200_case_study.py")
-        print("9. Run 05_log200_periodic_fetch.py")
-        print("10. Exit")
-        choice = input("\nEnter your choice: ")
+        os.system('clear')
+        print("""
+Welcome to the Weather Data Ingest Menu
+Please select an option:
 
-        if choice == "1":
-            show_options("01_log200_ingest_structured.py", config_fields["01_log200_ingest_structured.py"])
-        elif choice == "2":
-            show_options("02_log200_ingest_raw.py", config_fields["02_log200_ingest_raw.py"])
-        elif choice == "3":
-            show_options("04_log200_case_study.py", config_fields["04_log200_case_study.py"])
-        elif choice == "4":
-            show_options("05_log200_periodic_fetch.py", config_fields["05_log200_periodic_fetch.py"])
-        elif choice == "5":
-            clear_screen()
-            print("Available fields to set:")
-            all_fields = config_fields["01_log200_ingest_structured.py"] + \
-                         config_fields["02_log200_ingest_raw.py"] + \
-                         config_fields["04_log200_case_study.py"] + \
-                         config_fields["05_log200_periodic_fetch.py"]
-            unique_fields = list(set(all_fields))
-            unique_fields.sort()  # Sort fields alphabetically for easier navigation
-            for idx, field in enumerate(unique_fields, 1):
-                print(f"{idx}. {field}")
-            field_idx = input("\nEnter the number of the field to set: ")
-            if field_idx.isdigit() and 1 <= int(field_idx) <= len(unique_fields):
-                set_option(unique_fields[int(field_idx) - 1])
+1. Show options for script 01
+2. Show options for script 02
+3. Show options for script 04
+4. Show options for script 05
+5. Set a configuration field
+6. Run script 01
+7. Run script 02
+8. Run script 04
+9. Run script 05
+0. Exit
+        """)
+        choice = input("Enter your choice: ").strip()
+
+        if choice == '1':
+            show_config('01')
+        elif choice == '2':
+            show_config('02')
+        elif choice == '3':
+            show_config('04')
+        elif choice == '4':
+            show_config('05')
+        elif choice == '5':
+            field = input(f"Enter the field name to set ({', '.join(FIELD_EXAMPLES.keys())}): ").strip()
+            if field in FIELD_EXAMPLES:
+                set_config_field(field)
             else:
-                print("Invalid field number.")
-                input("\nPress Enter to continue...")
-        elif choice == "6":
-            run_script("01_log200_ingest_structured.py")
-        elif choice == "7":
-            run_script("02_log200_ingest_raw.py")
-        elif choice == "8":
-            run_script("04_log200_case_study.py")
-        elif choice == "9":
-            run_periodic_fetch()
-        elif choice == "10":
+                print("Invalid field name.")
+        elif choice == '6':
+            run_script('01', '01_log200_ingest_structured.py')
+        elif choice == '7':
+            run_script('02', '02_log200_ingest_raw.py')
+        elif choice == '8':
+            run_script('04', '04_log200_case_study.py')
+        elif choice == '9':
+            run_script('05', '05_log200_periodic_fetch.py')
+        elif choice == '0':
             break
         else:
-            input("Invalid choice. Press Enter to continue...")
+            print("Invalid choice. Please try again.")
+
+        input("\nPress Enter to continue...")
 
 if __name__ == "__main__":
     main_menu()
