@@ -27,12 +27,6 @@ def load_config():
         raise ValueError("Please replace all 'REPLACEME' fields in the config file.")
     return config
 
-# Save configuration to file
-def save_config(config):
-    config_path = os.path.join(base_dir, 'config.json')
-    with open(config_path, 'w') as file:
-        json.dump(config, file, indent=4)
-
 # Initialize TimezoneFinder
 def get_timezone(latitude, longitude):
     tf = TimezoneFinder()
@@ -196,7 +190,7 @@ def main():
 
         # Generate extreme weather data if specified
         alert_message = ""
-        if extreme_field and extreme_field != "null" and high != "null":
+        if extreme_field:
             weather_data, alert_message = generate_extreme_weather_data(weather_data, extreme_field, high)
 
         # Generate log lines
@@ -206,11 +200,7 @@ def main():
         structured_data = [{"tags": {"host": "weatherhost", "source": "weatherdata"}, "events": [{"timestamp": event['@timestamp'], "attributes": event} for event in log_lines]}]
         status_code, response_text = send_to_logscale(config['logscale_api_url'], config['logscale_api_token_case_study'], structured_data)
         logging.debug(f"Status Code: {status_code}, Response: {response_text}")
-
-        # Reset extreme_field and high to "null" for cron job safety
-        config['extreme_field'] = "null"
-        config['high'] = "null"
-        save_config(config)
+        print(f"Status Code: {status_code}, Response: {response_text}")
     except Exception as e:
         logging.error(e)
 
