@@ -1,16 +1,16 @@
 import json
 import os
+import logging
+import requests
+from datetime import datetime, timedelta
 from astral import LocationInfo
 from astral.sun import sun
 from astral.moon import phase
-from datetime import datetime, timedelta
 from timezonefinder import TimezoneFinder
 from zoneinfo import ZoneInfo
-import requests
 from meteostat import Point, Hourly, Stations
 import pandas as pd
 import numpy as np
-import logging
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -18,14 +18,21 @@ logging.basicConfig(level=logging.DEBUG)
 # Set the base directory relative to the script location
 base_dir = os.path.dirname(__file__)
 
+CONFIG_FILE = 'config.json'
+LOGSCALE_URL = 'https://cloud.us.humio.com/api/v1/ingest/humio-structured'
+
 # Load and validate the configuration
 def load_config():
-    config_path = os.path.join(base_dir, 'config.json')
+    config_path = os.path.join(base_dir, CONFIG_FILE)
     with open(config_path, 'r') as file:
         config = json.load(file)
-    if any(value == "REPLACEME" for value in config.values()):
-        raise ValueError("Please replace all 'REPLACEME' fields in the config file.")
     return config
+
+# Save configuration
+def save_config(config):
+    config_path = os.path.join(base_dir, CONFIG_FILE)
+    with open(config_path, 'w') as file:
+        json.dump(config, file, indent=4)
 
 # Initialize TimezoneFinder
 def get_timezone(latitude, longitude):
@@ -198,9 +205,13 @@ def main():
 
         # Send log lines to LogScale
         structured_data = [{"tags": {"host": "weatherhost", "source": "weatherdata"}, "events": [{"timestamp": event['@timestamp'], "attributes": event} for event in log_lines]}]
-        status_code, response_text = send_to_logscale(config['logscale_api_url'], config['logscale_api_token_case_study'], structured_data)
+        status_code, response_text = send_to_logscale(LOGSCALE_URL, config['logscale_api_token_case_study'], structured_data)
         logging.debug(f"Status Code: {status_code}, Response: {response_text}")
-        print(f"Status Code: {status_code}, Response: {response_text}")
+        
+        # Reset extreme values to null for cron job
+        config['extreme_field'] = None
+        config['high'] = None
+        save_config(config)
     except Exception as e:
         logging.error(e)
 
