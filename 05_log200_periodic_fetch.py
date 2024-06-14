@@ -116,12 +116,6 @@ def generate_log_lines(weather_data, sun_and_moon_info, encounter_id, alias, con
                 "dawn": sun_and_moon_info["sun_info"]["dawn"]
             }
         }
-        # Update the extreme field with the extreme value
-        if alert_message:
-            extreme_field = config.get('extreme_field')
-            if extreme_field and extreme_field in log_entry['weather']:
-                extreme_value = row[extreme_field]
-                log_entry['weather'][extreme_field] = extreme_value
         log_lines.append(log_entry)
     logging.debug(f"Generated log lines: {log_lines}")
     return log_lines
