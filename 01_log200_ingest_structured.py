@@ -1,7 +1,7 @@
 import json
 import os
-from datetime import datetime
 import requests
+from datetime import datetime
 import logging
 
 # Configure logging
@@ -9,87 +9,80 @@ logging.basicConfig(level=logging.DEBUG)
 
 # Set the base directory relative to the script location
 base_dir = os.path.dirname(__file__)
-config_path = os.path.join(base_dir, 'config.json')
 
+# Load and validate the configuration
 def load_config():
+    config_path = os.path.join(base_dir, 'config.json')
     with open(config_path, 'r') as file:
-        return json.load(file)
+        config = json.load(file)
+    if any(value == "REPLACEME" for value in config.values()):
+        raise ValueError("Please replace all 'REPLACEME' fields in the config file.")
+    return config
 
-def save_config(config):
-    with open(config_path, 'w') as file:
-        json.dump(config, file, indent=4)
-
-def prompt_for_value(prompt, hint):
-    value = input(f"{prompt} ({hint}): ")
-    return value
-
-def validate_input(prompt, hint, validate_func):
-    while True:
-        value = prompt_for_value(prompt, hint)
-        if validate_func(value):
-            return value
-        else:
-            print(f"Invalid value. Please try again.")
-
-def main():
-    config = load_config()
-
-    # Check and prompt for required values if missing
-    if not config.get("alias"):
-        config["alias"] = validate_input("Enter alias", "e.g., racing-jack", lambda x: bool(x))
-    if not config.get("encounter_id"):
-        config["encounter_id"] = validate_input("Enter encounter ID", "e.g., jt30", lambda x: bool(x))
-    if not config.get("logscale_api_token_structured"):
-        config["logscale_api_token_structured"] = validate_input("Enter LogScale API Token (Structured)", "e.g., 7f51ecfe-71a5-4268-81d7-7f0c81c6105d", lambda x: bool(x))
-
-    save_config(config)
-
-    alias = config["alias"]
-    encounter_id = config["encounter_id"]
-    api_token = config["logscale_api_token_structured"]
-
-    # Your existing script logic here
-    logscale_api_url = "https://cloud.us.humio.com/api/v1/ingest/humio-structured"
-
-    # Example data to send
-    data = [
-        {
-            "tags": {"host": "weatherhost", "source": "weatherdata"},
-            "events": [
-                {
-                    "timestamp": datetime.utcnow().isoformat() + "Z",
-                    "attributes": {
-                        "@timestamp": datetime.utcnow().isoformat() + "Z",
-                        "geo": {"city_name": "Ann Arbor", "country_name": "US", "location": {"lat": "42.2808", "lon": "-83.7430"}},
-                        "observer": {"alias": alias, "id": encounter_id},
-                        "ecs": {"version": "1.12.0"},
-                        "weather": {
-                            "temperature": 20.0,
-                            "dew_point": 10.0,
-                            "relative_humidity": 80,
-                            "precipitation": 5.0,
-                            "snow": 0.0,
-                            "wind": {"speed": 10.0, "direction": 180, "gust": 15.0},
-                            "pressure": 1012.0,
-                            "sunshine": 8.0,
-                            "station_name": "Ann Arbor Station"
-                        },
-                        "event": {"created": datetime.utcnow().isoformat() + "Z", "module": "weather", "dataset": "weather"},
-                        "sun": {"sunrise": "2024-06-11T06:00:00Z", "noon": "2024-06-11T12:00:00Z", "dusk": "2024-06-11T18:00:00Z", "sunset": "2024-06-11T18:30:00Z", "dawn": "2024-06-11T05:30:00Z"},
-                        "moon_phase": 0.5
-                    }
-                }
-            ]
-        }
-    ]
-
-    # Send data to LogScale
+# Send data to LogScale
+def send_to_logscale(logscale_api_url, logscale_api_token, data):
     headers = {
-        "Authorization": f"Bearer {api_token}",
+        "Authorization": f"Bearer {logscale_api_token}",
         "Content-Type": "application/json"
     }
     response = requests.post(logscale_api_url, json=data, headers=headers)
     logging.debug(f"Response from LogScale: Status Code: {response.status_code}, Response: {response.text}")
+    return response.status_code, response.text
+
+# Main function
+def main():
+    try:
+        logging.debug("Starting script...")
+        config = load_config()
+        logging.debug(f"Config loaded: {config}")
+        
+        # Example log data
+        example_data = [
+            {
+                "tags": {
+                    "host": "weatherhost",
+                    "source": "weatherdata"
+                },
+                "events": [
+                    {
+                        "timestamp": "2024-06-14T12:00:00+00:00",
+                        "attributes": {
+                            "observer.id": config["encounter_id"],
+                            "observer.alias": config["alias"],
+                            "weather.temperature": 25.6,
+                            "weather.humidity": "60%",
+                            "weather.precipitation": "0mm",
+                            "weather.wind_speed": "15km/h"
+                        }
+                    }
+                ]
+            }
+        ]
+
+        # Send log data to LogScale
+        status_code, response_text = send_to_logscale(
+            config['logscale_api_url'],
+            config['logscale_api_token_structured'],
+            example_data
+        )
+
+        print(f"Status Code: {status_code}, Response: {response_text}")
+        
+        # Provide guidance to students
+        print("\n### Important: Read the Output ###\n")
+        print("Sample Log Entry Sent:")
+        print(json.dumps(example_data, indent=4))
+        print("\nLog Entry Structure:")
+        print("The log entry includes fields such as 'timestamp', 'observer.id', 'observer.alias', 'weather.temperature', 'weather.humidity', 'weather.precipitation', and 'weather.wind_speed'.")
+        print("\nUsing the LogScale Structured API:")
+        print("The LogScale Structured API is used to ingest structured data directly. This means that the data being sent already has a predefined structure and does not require additional parsing.")
+        print("\nSearch Hint:")
+        print("To search for your data in LogScale, use the following query in your sandbox view:")
+        print(f'observer.id = "{config["encounter_id"]}" AND observer.alias = "{config["alias"]}"')
+        print("Make sure to adjust the time range to include the time when the logs were sent (e.g., '1m', '7d', etc.).")
+        
+    except Exception as e:
+        logging.error(e)
 
 if __name__ == "__main__":
     main()
