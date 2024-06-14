@@ -85,16 +85,20 @@ def run_script(script_id, script_name):
 def setup_cron_job():
     cron_job = "0 * * * * /usr/bin/python3 /home/ec2-user/weather/05_log200_periodic_fetch.py\n"
     cron_exists = False
-    cron_file = "/var/spool/cron/crontabs/root"
-    
-    if os.path.exists(cron_file):
-        with open(cron_file, 'r') as file:
-            if cron_job in file.read():
-                cron_exists = True
-    
+
+    try:
+        existing_crontab = subprocess.check_output(['sudo', 'crontab', '-l', '-u', 'ec2-user']).decode()
+        if cron_job in existing_crontab:
+            cron_exists = True
+    except subprocess.CalledProcessError:
+        existing_crontab = ""
+
     if not cron_exists:
-        with open(cron_file, 'a') as file:
-            file.write(cron_job)
+        with open('crontab_tmp', 'w') as f:
+            f.write(existing_crontab)
+            f.write(cron_job)
+        subprocess.check_call(['sudo', 'crontab', 'crontab_tmp', '-u', 'ec2-user'])
+        os.remove('crontab_tmp')
         print("Cron job set to run every hour.")
     else:
         print("Cron job is already set.")
