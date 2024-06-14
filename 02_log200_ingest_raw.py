@@ -1,26 +1,36 @@
 import json
 import os
-import random
-from datetime import datetime, timedelta
-import requests
 import logging
+import requests
+from datetime import datetime, timedelta
+import random
 
-# Configure logging
+# Set up logging
 logging.basicConfig(level=logging.DEBUG)
 
-# Set the base directory relative to the script location
-base_dir = os.path.dirname(__file__)
+CONFIG_FILE = 'config.json'
 
-# Load and validate the configuration
+REQUIRED_FIELDS = ['logscale_api_token_raw', 'encounter_id', 'alias']
+
+LOGSCALE_URL = 'https://cloud.us.humio.com/api/v1/ingest/humio-unstructured'
+
+# Load configuration
 def load_config():
-    config_path = os.path.join(base_dir, 'config.json')
-    with open(config_path, 'r') as file:
-        config = json.load(file)
-    if any(value == "REPLACEME" for value in config.values()):
-        raise ValueError("Please replace all 'REPLACEME' fields in the config file.")
-    return config
+    if os.path.exists(CONFIG_FILE):
+        with open(CONFIG_FILE, 'r') as file:
+            return json.load(file)
+    return {}
 
-# Generate a raw log entry
+# Validate configuration
+def validate_config():
+    config = load_config()
+    missing_fields = [field for field in REQUIRED_FIELDS if field not in config or config[field] == '']
+    if missing_fields:
+        print(f"\nMissing required fields: {', '.join(missing_fields)}")
+        return False
+    return True
+
+# Generate a raw log line
 def generate_raw_log(encounter_id, alias, units):
     timestamp = (datetime.utcnow() - timedelta(minutes=random.randint(1, 5))).isoformat() + "Z"
 
@@ -34,57 +44,44 @@ def generate_raw_log(encounter_id, alias, units):
     humidity = random.randint(20, 90)  # %
     precipitation = random.choice([0, 1, 2, 5, 10, 20])  # mm
 
-    raw_log = f"[{timestamp}] Temp: {temperature}{units}, Humidity: {humidity}%, Precipitation: {precipitation}mm, Wind Speed: {wind_speed}{units}, Encounter ID: {encounter_id}, Alias: {alias}"
+    raw_log = f"[{timestamp}] Temp: {temperature}°C, Humidity: {humidity}%, Precipitation: {precipitation}mm, Wind Speed: {wind_speed}km/h, Encounter ID: {encounter_id}, Alias: {alias}"
     return raw_log
 
-# Send data to LogScale
-def send_to_logscale(logscale_api_url, logscale_api_token, data):
+# Send raw log data to LogScale
+def send_to_logscale(raw_log, logscale_api_token):
     headers = {
         "Authorization": f"Bearer {logscale_api_token}",
         "Content-Type": "text/plain"
     }
-    response = requests.post(logscale_api_url, data=data, headers=headers)
-    logging.debug(f"Response from LogScale: Status Code: {response.status_code}, Response: {response.text}")
+    response = requests.post(LOGSCALE_URL, data=raw_log, headers=headers)
     return response.status_code, response.text
 
 # Main function
 def main():
-    try:
-        logging.debug("Starting script...")
-        config = load_config()
-        logging.debug(f"Config loaded: {config}")
-        
-        # Generate a raw log entry
-        raw_log = generate_raw_log(
-            config["encounter_id"],
-            config["alias"],
-            config["units"]
-        )
+    if not validate_config():
+        return
 
-        # Send log data to LogScale
-        status_code, response_text = send_to_logscale(
-            config['logscale_api_url'],
-            config['logscale_api_token_raw'],
-            raw_log
-        )
+    config = load_config()
+    logscale_api_token = config['logscale_api_token_raw']
+    encounter_id = config['encounter_id']
+    alias = config['alias']
+    units = config.get('units', 'metric')
 
-        print(f"Status Code: {status_code}, Response: {response_text}")
-        
-        # Provide guidance to students
-        print("\n### Important: Read the Output ###\n")
-        print("Sample Log Entry Sent:")
-        print(raw_log)
-        print("\nLog Entry Structure:")
-        print("The log entry includes fields such as 'timestamp', 'temperature', 'humidity', 'precipitation', 'wind speed', 'encounter ID', and 'alias'.")
-        print("\nUsing the LogScale Raw Ingest API:")
-        print("The LogScale Raw Ingest API is used to ingest unstructured data directly. This means that the data being sent is a raw string that will be parsed using the attached parser.")
-        print("\nSearch Hint:")
-        print("To search for your data in LogScale, use the following query in your sandbox view:")
-        print(f'observer.id = "{config["encounter_id"]}" AND observer.alias = "{config["alias"]}"')
-        print("Make sure to adjust the time range to include the time when the logs were sent (e.g., '1m', '7d', etc.).")
-        
-    except Exception as e:
-        logging.error(e)
+    raw_log = generate_raw_log(encounter_id, alias, units)
+    
+    # Display the raw log line for user reference
+    print("\nRaw log line that will be sent:")
+    print(raw_log)
+
+    print("\nDescription:")
+    print("This script generates a raw log line with weather data attributes.")
+    print("It then sends the log line to LogScale using the unstructured ingest API.")
+    print("You can search for your data in LogScale using the following query:")
+    print(f"observer.id={encounter_id} AND observer.alias={alias}")
+    print("\nMake sure to set the time range for the logs appropriately in your LogScale view.")
+
+    status_code, response_text = send_to_logscale(raw_log, logscale_api_token)
+    logging.debug(f"Response from LogScale: Status Code: {status_code}, Response: {response_text}")
 
 if __name__ == "__main__":
     main()
