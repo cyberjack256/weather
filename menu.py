@@ -1,6 +1,8 @@
 import os
 import json
 
+LOGSCALE_API_URL = "https://cloud.us.humio.com/api/v1/ingest/humio-structured"
+
 # Clear screen function
 def clear_screen():
     os.system('clear' if os.name == 'posix' else 'cls')
