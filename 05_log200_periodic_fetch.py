@@ -67,6 +67,10 @@ def fetch_weather_data(latitude, longitude, units):
     return data
 
 def generate_log_lines(weather_data, sun_and_moon_info, encounter_id, alias, config, alert_message):
+    if weather_data.empty:
+        logging.error("Weather data is empty.")
+        return []
+
     log_lines = []
     for time, row in weather_data.iterrows():
         log_entry = {
@@ -191,6 +195,9 @@ def main():
 
     # Fetch weather data
     weather_data = fetch_weather_data(latitude, longitude, units)
+    if weather_data.empty:
+        logging.error("No weather data fetched.")
+        return
 
     # Generate extreme weather data if specified
     alert_message = ""
@@ -199,6 +206,9 @@ def main():
 
     # Generate log lines
     log_lines = generate_log_lines(weather_data, sun_and_moon_info, encounter_id, alias, config, alert_message)
+    if not log_lines:
+        logging.error("No log lines generated.")
+        return
 
     # Display an example log line for user reference
     example_log_line = json.dumps(log_lines[0], indent=4)
