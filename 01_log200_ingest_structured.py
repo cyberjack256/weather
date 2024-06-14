@@ -3,7 +3,7 @@ import os
 import random
 import requests
 from datetime import datetime, timedelta
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Tuple
 
 # Set up logging
 import logging
