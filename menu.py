@@ -1,6 +1,5 @@
 import os
 import json
-import readline
 
 # Clear screen function
 def clear_screen():
@@ -53,26 +52,14 @@ def prompt_for_required_fields(required_fields):
         config[field] = prompt_for_input(field, config.get(field, 'REPLACEME'))
     save_config(config)
 
-# Tab completion for set command
-def completer(text, state):
-    options = [i for i in config_fields if i.startswith(text)]
-    if state < len(options):
-        return options[state]
-    else:
-        return None
-
 # Menu options
 def main_menu():
-    global config_fields
     config_fields = {
         "01_log200_ingest_structured.py": ["alias", "encounter_id", "logscale_api_token_structured"],
         "02_log200_ingest_raw.py": ["alias", "encounter_id", "logscale_api_token_raw"],
         "04_log200_case_study.py": ["alias", "encounter_id", "logscale_api_token_case_study", "city_name", "country_name", "latitude", "longitude", "date_start", "date_end", "units"],
         "05_log200_periodic_fetch.py": ["alias", "encounter_id", "logscale_api_token_case_study", "city_name", "country_name", "latitude", "longitude", "extreme_field", "high"]
     }
-
-    readline.set_completer(completer)
-    readline.parse_and_bind("tab: complete")
 
     while True:
         clear_screen()
@@ -81,7 +68,7 @@ def main_menu():
         print("2. Show options for 02_log200_ingest_raw.py")
         print("3. Show options for 04_log200_case_study.py")
         print("4. Show options for 05_log200_periodic_fetch.py")
-        print("5. Set option")
+        print("5. Set individual option")
         print("6. Run 01_log200_ingest_structured.py")
         print("7. Run 02_log200_ingest_raw.py")
         print("8. Run 04_log200_case_study.py")
@@ -98,8 +85,17 @@ def main_menu():
         elif choice == "4":
             show_options("05_log200_periodic_fetch.py", config_fields["05_log200_periodic_fetch.py"])
         elif choice == "5":
-            field = input("Enter the field to set: ")
-            if field in config_fields["01_log200_ingest_structured.py"] + config_fields["02_log200_ingest_raw.py"] + config_fields["04_log200_case_study.py"] + config_fields["05_log200_periodic_fetch.py"]:
+            clear_screen()
+            print("Available fields to set:")
+            all_fields = config_fields["01_log200_ingest_structured.py"] + \
+                         config_fields["02_log200_ingest_raw.py"] + \
+                         config_fields["04_log200_case_study.py"] + \
+                         config_fields["05_log200_periodic_fetch.py"]
+            unique_fields = list(set(all_fields))
+            for field in unique_fields:
+                print(f" - {field}")
+            field = input("\nEnter the field to set: ")
+            if field in unique_fields:
                 set_option(field)
             else:
                 print("Invalid field name.")
