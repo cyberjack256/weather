@@ -3,7 +3,7 @@ import os
 import random
 import requests
 from datetime import datetime, timedelta
-from typing import Dict, Any
+from typing import Dict, Any, List
 
 # Set up logging
 import logging
@@ -71,12 +71,19 @@ def generate_weather_event(encounter_id: str, alias: str, units: str = "metric")
     }
     return json_event
 
-def send_to_logscale(logscale_api_token, event):
+def send_to_logscale(logscale_api_token: str, data: List[Dict[str, Any]]) -> Tuple[int, str]:
     headers = {
         "Authorization": f"Bearer {logscale_api_token}",
         "Content-Type": "application/json"
     }
-    response = requests.post(LOGSCALE_URL, json=[event], headers=headers)
+    structured_data = [{
+        "tags": {
+            "host": "weatherhost",
+            "source": "weatherdata"
+        },
+        "events": data
+    }]
+    response = requests.post(LOGSCALE_URL, json=structured_data, headers=headers)
     return response.status_code, response.text
 
 def main():
@@ -88,11 +95,11 @@ def main():
     encounter_id = config['encounter_id']
     alias = config['alias']
 
-    # Generate weather event
-    weather_event = generate_weather_event(encounter_id, alias)
+    # Generate weather events
+    weather_events = [generate_weather_event(encounter_id, alias) for _ in range(5)]
 
     # Display an example log line for user reference
-    example_log_line = json.dumps(weather_event, indent=4)
+    example_log_line = json.dumps(weather_events[0], indent=4)
     print("\nExample Log Line:")
     print(example_log_line)
 
@@ -115,7 +122,8 @@ def main():
     print(f"2. Use the following query to search for your data:")
     print(f"observer.id={encounter_id} AND observer.alias={alias}")
 
-    status_code, response_text = send_to_logscale(logscale_api_token, weather_event)
+    # Send data to LogScale
+    status_code, response_text = send_to_logscale(logscale_api_token, weather_events)
     logging.debug(f"Response from LogScale: Status Code: {status_code}, Response: {response_text}")
 
 if __name__ == "__main__":
