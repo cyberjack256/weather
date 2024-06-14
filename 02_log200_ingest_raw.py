@@ -1,18 +1,17 @@
 import json
 import os
-import logging
+import random
 import requests
 from datetime import datetime, timedelta
-import random
+from typing import Dict, Any
 
 # Set up logging
+import logging
 logging.basicConfig(level=logging.DEBUG)
 
 CONFIG_FILE = 'config.json'
-
 REQUIRED_FIELDS = ['logscale_api_token_raw', 'encounter_id', 'alias']
-
-LOGSCALE_URL = 'https://cloud.us.humio.com/api/v1/ingest/humio-unstructured'
+LOGSCALE_URL = 'https://cloud.us.humio.com/api/v1/ingest/raw'
 
 # Load configuration
 def load_config():
@@ -30,58 +29,97 @@ def validate_config():
         return False
     return True
 
-# Generate a raw log line
 def generate_raw_log(encounter_id, alias, units):
+    """
+    Generate a raw log entry with random weather data.
+    Args:
+        encounter_id (str): The encounter ID for the event.
+        alias (str): The alias for the event.
+        units (str): The units of measurement, either 'imperial' or 'metric'.
+    Returns:
+        str: The generated raw log entry.
+    """
     timestamp = (datetime.utcnow() - timedelta(minutes=random.randint(1, 5))).isoformat() + "Z"
 
-    if units == "imperial":
-        temperature = random.randint(14, 95)  # °F
-        wind_speed = random.randint(0, 62)  # mph
-    else:
-        temperature = random.randint(-10, 35)  # °C
-        wind_speed = random.randint(0, 100)  # km/h
+    temperature = random.randint(-10, 35)  # °C
+    wind_speed = random.randint(0, 100)  # km/h
 
     humidity = random.randint(20, 90)  # %
     precipitation = random.choice([0, 1, 2, 5, 10, 20])  # mm
 
     raw_log = f"[{timestamp}] Temp: {temperature}°C, Humidity: {humidity}%, Precipitation: {precipitation}mm, Wind Speed: {wind_speed}km/h, Encounter ID: {encounter_id}, Alias: {alias}"
+
     return raw_log
 
-# Send raw log data to LogScale
-def send_to_logscale(raw_log, logscale_api_token):
+def send_to_logscale(logscale_api_url, logscale_api_token, raw_log):
+    """
+    Send raw log data to LogScale.
+    Args:
+        logscale_api_url (str): The LogScale API URL.
+        logscale_api_token (str): The LogScale API token.
+        raw_log (str): The raw log message.
+    Returns:
+        Tuple[int, str]: The HTTP status code and response text.
+    """
+    logging.info("Sending raw log data to LogScale...")
     headers = {
         "Authorization": f"Bearer {logscale_api_token}",
         "Content-Type": "text/plain"
     }
-    response = requests.post(LOGSCALE_URL, data=raw_log, headers=headers)
-    return response.status_code, response.text
+    try:
+        response = requests.post(logscale_api_url, data=raw_log, headers=headers)
+        response.raise_for_status()
+        logging.info(f"Response from LogScale: Status Code: {response.status_code}, Response: {response.text}")
+        return response.status_code, response.text
+    except requests.RequestException as e:
+        logging.error(f"Failed to send raw log data to LogScale: {e}")
+        raise
 
-# Main function
 def main():
-    if not validate_config():
-        return
+    """Main function to load configuration, generate raw logs, and send them to LogScale."""
+    try:
+        if not validate_config():
+            return
 
-    config = load_config()
-    logscale_api_token = config['logscale_api_token_raw']
-    encounter_id = config['encounter_id']
-    alias = config['alias']
-    units = config.get('units', 'metric')
+        config = load_config()
+        logscale_api_url = LOGSCALE_URL
+        logscale_api_token = config['logscale_api_token_raw']
+        encounter_id = config['encounter_id']
+        alias = config['alias']
+        units = config.get('units', 'metric')
 
-    raw_log = generate_raw_log(encounter_id, alias, units)
-    
-    # Display the raw log line for user reference
-    print("\nRaw log line that will be sent:")
-    print(raw_log)
+        for _ in range(5):  # Generate 5 log entries
+            raw_log = generate_raw_log(encounter_id, alias, units)
+            logging.info(f"Generated raw log: {raw_log}")
+            status_code, response_text = send_to_logscale(logscale_api_url, logscale_api_token, raw_log)
+            logging.info(f"Status Code: {status_code}, Response: {response_text}")
 
-    print("\nDescription:")
-    print("This script generates a raw log line with weather data attributes.")
-    print("It then sends the log line to LogScale using the unstructured ingest API.")
-    print("You can search for your data in LogScale using the following query:")
-    print(f"observer.id={encounter_id} AND observer.alias={alias}")
-    print("\nMake sure to set the time range for the logs appropriately in your LogScale view.")
+        # Display an example log line for user reference
+        example_log_line = generate_raw_log(encounter_id, alias, units)
+        print("\nExample Log Line:")
+        print(example_log_line)
 
-    status_code, response_text = send_to_logscale(raw_log, logscale_api_token)
-    logging.debug(f"Response from LogScale: Status Code: {status_code}, Response: {response_text}")
+        # Description of the log line structure
+        print("\nDescription:")
+        print("The log line includes various details such as:")
+        print("- Timestamp (timestamp)")
+        print("- Temperature (Temp)")
+        print("- Humidity (Humidity)")
+        print("- Precipitation (Precipitation)")
+        print("- Wind Speed (Wind Speed)")
+        print("- Encounter ID (Encounter ID)")
+        print("- Alias (Alias)")
+        print("\nThe raw data is ingested into LogScale using the raw API endpoint.")
+
+        # How to search for the data in LogScale
+        print("\nHow to Search for Your Data in LogScale:")
+        print(f"1. Go to your LogScale view and set the time range from the past week.")
+        print(f"2. Use the following query to search for your data:")
+        print(f"observer.id={encounter_id} AND observer.alias={alias}")
+
+    except Exception as e:
+        logging.error("An error occurred: ", exc_info=True)
+        print(e)
 
 if __name__ == "__main__":
     main()
