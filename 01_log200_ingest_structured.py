@@ -1,135 +1,97 @@
-import random
 import json
+import os
+from datetime import datetime
 import requests
-from datetime import datetime, timedelta
 import logging
-from typing import Dict, Tuple, Any, List
 
-# Set up logging
+# Configure logging
 logging.basicConfig(level=logging.DEBUG)
 
-def generate_weather_event(encounter_id: str, units: str) -> Dict[str, Any]:
-    """
-    Generate a weather event with random data.
-    Args:
-        encounter_id (str): The encounter ID for the event.
-        units (str): The units of measurement, either 'imperial' or 'metric'.
-    Returns:
-        Dict[str, Any]: The generated weather event data.
-    """
-    # Generate a timestamp for the event
-    timestamp = (datetime.now() - timedelta(days=random.randint(1, 6))).isoformat() + 'Z'
-    
-    if units == "imperial":
-        # Generate weather-related event data in imperial units
-        temperature = random.randint(14, 95)  # °F
-        wind_speed = random.randint(0, 62)  # mph
-    else:
-        # Generate weather-related event data in metric units
-        temperature = random.randint(-10, 35)  # °C
-        wind_speed = random.randint(0, 100)  # km/h
+# Set the base directory relative to the script location
+base_dir = os.path.dirname(__file__)
+config_path = os.path.join(base_dir, 'config.json')
 
-    event_data = {
-        "message": f"Weather update at timestamp {timestamp}",
-        "temperature": temperature,
-        "humidity_percentage": random.randint(20, 90),  # %
-        "precipitation": f"{random.choice([0, 1, 2, 5, 10, 20])} mm",
-        "wind_speed": wind_speed
-    }
+def load_config():
+    with open(config_path, 'r') as file:
+        return json.load(file)
 
-    # Create JSON event in the format expected by LogScale
-    json_event = {
-        "timestamp": timestamp,
-        "attributes": {
-            "temperature": event_data["temperature"],
-            "humidity_percentage": event_data["humidity_percentage"],
-            "precipitation": event_data["precipitation"],
-            "wind_speed": event_data["wind_speed"],
-            "message": event_data["message"],
-            "source": "/home/ec2-user/var/log/weather.log",
-            "sourcetype": "weatherdata",
-            "env": "prod",
-            "group.id": encounter_id
-        }
-    }
+def save_config(config):
+    with open(config_path, 'w') as file:
+        json.dump(config, file, indent=4)
 
-    return json_event
+def prompt_for_value(prompt, hint):
+    value = input(f"{prompt} ({hint}): ")
+    return value
 
-def send_to_logscale(logscale_api_url: str, logscale_api_token: str, data: List[Dict[str, Any]]) -> Tuple[int, str]:
-    """
-    Send data to LogScale.
-    Args:
-        logscale_api_url (str): The LogScale API URL.
-        logscale_api_token (str): The LogScale API token.
-        data (List[Dict[str, Any]]): The data to send.
-    Returns:
-        Tuple[int, str]: The HTTP status code and response text.
-    """
-    headers = {
-        "Authorization": f"Bearer {logscale_api_token}",
-        "Content-Type": "application/json"
-    }
-    try:
-        response = requests.post(logscale_api_url, json=data, headers=headers)
-        response.raise_for_status()
-        return response.status_code, response.text
-    except requests.RequestException as e:
-        logging.error(f"Failed to send data to LogScale: {e}")
-        raise
-
-def load_config() -> Dict[str, str]:
-    """
-    Load and validate the configuration from the config.json file.
-    Returns:
-        Dict[str, str]: The loaded configuration.
-    """
-    config_path = 'config.json'
-    try:
-        with open(config_path, 'r') as file:
-            config = json.load(file)
-    except FileNotFoundError:
-        logging.error("Configuration file not found.")
-        raise
-    except json.JSONDecodeError:
-        logging.error("Error decoding JSON from the configuration file.")
-        raise
-
-    required_keys = ['logscale_api_url', 'logscale_api_token_structured', 'encounter_id']
-    for key in required_keys:
-        if key not in config or config[key] == "REPLACEME":
-            raise ValueError(f"Please replace all 'REPLACEME' fields in the config file. Missing: {key}")
-
-    return config
+def validate_input(prompt, hint, validate_func):
+    while True:
+        value = prompt_for_value(prompt, hint)
+        if validate_func(value):
+            return value
+        else:
+            print(f"Invalid value. Please try again.")
 
 def main():
-    """Main function to load configuration, generate events, and send them to LogScale."""
-    try:
-        config = load_config()
-        logging.debug(f"Config loaded: {config}")
+    config = load_config()
 
-        logscale_api_url = config['logscale_api_url']
-        logscale_api_token = config['logscale_api_token_structured']
-        encounter_id = config['encounter_id']
-        units = config.get('units', 'metric')
+    # Check and prompt for required values if missing
+    if not config.get("alias"):
+        config["alias"] = validate_input("Enter alias", "e.g., racing-jack", lambda x: bool(x))
+    if not config.get("encounter_id"):
+        config["encounter_id"] = validate_input("Enter encounter ID", "e.g., jt30", lambda x: bool(x))
+    if not config.get("logscale_api_token_structured"):
+        config["logscale_api_token_structured"] = validate_input("Enter LogScale API Token (Structured)", "e.g., 7f51ecfe-71a5-4268-81d7-7f0c81c6105d", lambda x: bool(x))
 
-        events = [generate_weather_event(encounter_id, units) for _ in range(50)]
+    save_config(config)
 
-        # Structure the data payload for LogScale
-        structured_data = [{
-            "tags": {
-                "host": "weatherhost",
-                "source": "weatherdata"
-            },
-            "events": events
-        }]
+    alias = config["alias"]
+    encounter_id = config["encounter_id"]
+    api_token = config["logscale_api_token_structured"]
 
-        status_code, response_text = send_to_logscale(logscale_api_url, logscale_api_token, structured_data)
-        logging.debug(f"Status Code: {status_code}, Response: {response_text}")
-        print(f"Status Code: {status_code}, Response: {response_text}")
+    # Your existing script logic here
+    logscale_api_url = config.get("logscale_api_url")
+    if not logscale_api_url:
+        logscale_api_url = validate_input("Enter LogScale API URL", "e.g., https://cloud.us.humio.com/api/v1/ingest/humio-structured", lambda x: bool(x))
 
-    except Exception as e:
-        logging.error("An error occurred: ", exc_info=True)
-        print(e)
+    # Example data to send
+    data = [
+        {
+            "tags": {"host": "weatherhost", "source": "weatherdata"},
+            "events": [
+                {
+                    "timestamp": datetime.utcnow().isoformat() + "Z",
+                    "attributes": {
+                        "@timestamp": datetime.utcnow().isoformat() + "Z",
+                        "geo": {"city_name": "Ann Arbor", "country_name": "US", "location": {"lat": "42.2808", "lon": "-83.7430"}},
+                        "observer": {"alias": alias, "id": encounter_id},
+                        "ecs": {"version": "1.12.0"},
+                        "weather": {
+                            "temperature": 20.0,
+                            "dew_point": 10.0,
+                            "relative_humidity": 80,
+                            "precipitation": 5.0,
+                            "snow": 0.0,
+                            "wind": {"speed": 10.0, "direction": 180, "gust": 15.0},
+                            "pressure": 1012.0,
+                            "sunshine": 8.0,
+                            "station_name": "Ann Arbor Station"
+                        },
+                        "event": {"created": datetime.utcnow().isoformat() + "Z", "module": "weather", "dataset": "weather"},
+                        "sun": {"sunrise": "2024-06-11T06:00:00Z", "noon": "2024-06-11T12:00:00Z", "dusk": "2024-06-11T18:00:00Z", "sunset": "2024-06-11T18:30:00Z", "dawn": "2024-06-11T05:30:00Z"},
+                        "moon_phase": 0.5
+                    }
+                }
+            ]
+        }
+    ]
+
+    # Send data to LogScale
+    headers = {
+        "Authorization": f"Bearer {api_token}",
+        "Content-Type": "application/json"
+    }
+    response = requests.post(logscale_api_url, json=data, headers=headers)
+    logging.debug(f"Response from LogScale: Status Code: {response.status_code}, Response: {response.text}")
 
 if __name__ == "__main__":
     main()
