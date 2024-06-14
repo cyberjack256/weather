@@ -65,53 +65,70 @@ def fetch_weather_data(latitude, longitude, date_start, date_end, units):
     data = data.replace([np.nan, np.inf, -np.inf], None)
     return data
 
-def generate_log_lines(weather_data, sun_and_moon_info, encounter_id, alias, config):
+def generate_log_lines(weather_data, encounter_id, alias, config):
     log_lines = []
     for time, row in weather_data.iterrows():
+        date = time.date()
+        city = LocationInfo(config['city_name'], config['country_name'], config['timezone'], config['latitude'], config['longitude'])
+        s = sun(city.observer, date=date, tzinfo=city.timezone)
+        moon_phase_value = phase(date)
+        sun_and_moon_info = {
+            'sun_info': {
+                'dawn': s['dawn'].isoformat(),
+                'sunrise': s['sunrise'].isoformat(),
+                'noon': s['noon'].isoformat(),
+                'sunset': s['sunset'].isoformat(),
+                'dusk': s['dusk'].isoformat(),
+            },
+            'moon_phase': moon_phase_value
+        }
+
         log_entry = {
-            "@timestamp": time.strftime('%Y-%m-%dT%H:%M:%SZ'),
-            "geo": {
-                "city_name": config["city_name"],
-                "country_name": config["country_name"],
-                "location": {
-                    "lat": config["latitude"],
-                    "lon": config["longitude"]
-                }
-            },
-            "observer": {
-                "alias": alias,
-                "id": encounter_id
-            },
-            "ecs": {
-                "version": "1.12.0"
-            },
-            "moon_phase": sun_and_moon_info["moon_phase"],
-            "weather": {
-                "temperature": row["tavg"],
-                "min_temperature": row["tmin"],
-                "max_temperature": row["tmax"],
-                "precipitation": row["prcp"],
-                "snow": row["snow"],
-                "wind": {
-                    "speed": row["wspd"],
-                    "direction": row["wdir"],
-                    "gust": row["wpgt"]
+            "timestamp": time.strftime('%Y-%m-%dT%H:%M:%SZ'),
+            "attributes": {
+                "geo": {
+                    "city_name": config["city_name"],
+                    "country_name": config["country_name"],
+                    "location": {
+                        "lat": config["latitude"],
+                        "lon": config["longitude"]
+                    }
                 },
-                "pressure": row["pres"],
-                "sunshine": row["tsun"],
-                "station_name": row.get("station_name", "N/A")
-            },
-            "event": {
-                "created": datetime.utcnow().isoformat() + "Z",
-                "module": "weather",
-                "dataset": "weather"
-            },
-            "sun": {
-                "sunrise": sun_and_moon_info["sun_info"]["sunrise"],
-                "noon": sun_and_moon_info["sun_info"]["noon"],
-                "dusk": sun_and_moon_info["sun_info"]["dusk"],
-                "sunset": sun_and_moon_info["sun_info"]["sunset"],
-                "dawn": sun_and_moon_info["sun_info"]["dawn"]
+                "observer": {
+                    "alias": alias,
+                    "id": encounter_id
+                },
+                "ecs": {
+                    "version": "1.12.0"
+                },
+                "moon_phase": sun_and_moon_info["moon_phase"],
+                "weather": {
+                    "temperature": row["tavg"],
+                    "min_temperature": row["tmin"],
+                    "max_temperature": row["tmax"],
+                    "precipitation": row["prcp"],
+                    "snow": row["snow"],
+                    "wind": {
+                        "speed": row["wspd"],
+                        "direction": row["wdir"],
+                        "gust": row["wpgt"]
+                    },
+                    "pressure": row["pres"],
+                    "sunshine": row["tsun"],
+                    "station_name": row.get("station_name", "N/A")
+                },
+                "event": {
+                    "created": datetime.utcnow().isoformat() + "Z",
+                    "module": "weather",
+                    "dataset": "weather"
+                },
+                "sun": {
+                    "sunrise": sun_and_moon_info["sun_info"]["sunrise"],
+                    "noon": sun_and_moon_info["sun_info"]["noon"],
+                    "dusk": sun_and_moon_info["sun_info"]["dusk"],
+                    "sunset": sun_and_moon_info["sun_info"]["sunset"],
+                    "dawn": sun_and_moon_info["sun_info"]["dawn"]
+                }
             }
         }
         log_lines.append(log_entry)
@@ -122,7 +139,14 @@ def send_to_logscale(log_lines, logscale_api_token):
         "Authorization": f"Bearer {logscale_api_token}",
         "Content-Type": "application/json"
     }
-    response = requests.post(LOGSCALE_URL, json=log_lines, headers=headers)
+    payload = [{
+        "tags": {
+            "host": "weatherhost",
+            "source": "weatherdata"
+        },
+        "events": log_lines
+    }]
+    response = requests.post(LOGSCALE_URL, json=payload, headers=headers)
     return response.status_code, response.text
 
 def main():
@@ -141,28 +165,13 @@ def main():
 
     # Get timezone
     timezone = get_timezone(latitude, longitude)
-
-    # Fetch sun and moon data
-    city = LocationInfo(config['city_name'], config['country_name'], timezone, latitude, longitude)
-    date_specified = datetime.strptime(date_start, '%Y-%m-%d')
-    s = sun(city.observer, date=date_specified, tzinfo=city.timezone)
-    moon_phase_value = phase(date_specified)
-    sun_and_moon_info = {
-        'sun_info': {
-            'dawn': s['dawn'].isoformat(),
-            'sunrise': s['sunrise'].isoformat(),
-            'noon': s['noon'].isoformat(),
-            'sunset': s['sunset'].isoformat(),
-            'dusk': s['dusk'].isoformat(),
-        },
-        'moon_phase': moon_phase_value
-    }
+    config['timezone'] = timezone
 
     # Fetch weather data
     weather_data = fetch_weather_data(latitude, longitude, date_start, date_end, units)
 
     # Generate log lines
-    log_lines = generate_log_lines(weather_data, sun_and_moon_info, encounter_id, alias, config)
+    log_lines = generate_log_lines(weather_data, encounter_id, alias, config)
 
     # Display an example log line for user reference
     example_log_line = json.dumps(log_lines[0], indent=4)
