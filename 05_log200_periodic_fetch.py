@@ -62,6 +62,16 @@ def fetch_weather_data(latitude, longitude, units):
         station_name = station.name.iloc[0]
         data['station_name'] = station_name
 
+    # Convert units if necessary
+    if units == "imperial":
+        data["temp"] = data["temp"] * 9/5 + 32  # Celsius to Fahrenheit
+        data["dwpt"] = data["dwpt"] * 9/5 + 32  # Celsius to Fahrenheit
+        data["wspd"] = data["wspd"] * 2.23694  # m/s to mph
+        data["wpgt"] = data["wpgt"] * 2.23694  # m/s to mph
+        data["prcp"] = data["prcp"] / 25.4     # mm to inches
+        data["snow"] = data["snow"] / 25.4     # mm to inches
+        data["pres"] = data["pres"] * 0.02953  # hPa to inHg
+
     # Replace NaN and infinite values with None to avoid JSON serialization issues
     data = data.replace([np.nan, np.inf, -np.inf], None)
     return data
@@ -147,9 +157,9 @@ def generate_extreme_weather_data(weather_data, extreme_field, high):
     logging.debug(f"Generating extreme weather data for {extreme_field}...")
     extreme_values = {
         "temperature": (50, -50),  # High and low extreme temperatures
-        "wind_speed": (100, 0),    # High and low extreme wind speeds
-        "precipitation": (500, 0), # High and low extreme precipitation
-        "dew_point": (30, -30)     # High and low extreme dew points
+        "wspd": (100, 0),          # High and low extreme wind speeds
+        "prcp": (500, 0),          # High and low extreme precipitation
+        "dwpt": (30, -30)          # High and low extreme dew points
     }
     high_value, low_value = extreme_values.get(extreme_field, (None, None))
     if high_value is None or low_value is None:
