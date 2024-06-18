@@ -141,6 +141,9 @@ def send_to_logscale(log_lines, logscale_api_token):
     return response.status_code, response.text
 
 def generate_extreme_weather_data(weather_data, extreme_field, high):
+    if extreme_field is None or extreme_field.lower() == 'null':
+        return weather_data, ""
+
     logging.debug(f"Generating extreme weather data for {extreme_field}...")
     extreme_values = {
         "temperature": (50, -50),  # High and low extreme temperatures
@@ -199,7 +202,7 @@ def main():
     city = LocationInfo(config['city_name'], config['country_name'], timezone, latitude, longitude)
     date_specified = datetime.utcnow()
     s = sun(city.observer, date=date_specified, tzinfo=city.timezone)
-    moon_phase_value = phase(date_specified)
+    moon_phase_value = (phase(date_specified) % 30) / 30  # Normalize to [0, 1] range
     moon_phase_name = get_moon_phase_name(moon_phase_value)
     sun_and_moon_info = {
         'sun_info': {
