@@ -64,13 +64,13 @@ def fetch_weather_data(latitude, longitude, units):
 
     # Convert units if necessary
     if units == "imperial":
-        data["temp"] = data["temp"] * 9/5 + 32  # Celsius to Fahrenheit
-        data["dwpt"] = data["dwpt"] * 9/5 + 32  # Celsius to Fahrenheit
-        data["wspd"] = data["wspd"] * 2.23694  # m/s to mph
-        data["wpgt"] = data["wpgt"] * 2.23694  # m/s to mph
-        data["prcp"] = data["prcp"] / 25.4     # mm to inches
-        data["snow"] = data["snow"] / 25.4     # mm to inches
-        data["pres"] = data["pres"] * 0.02953  # hPa to inHg
+        data["temp"] = data["temp"] * 9/5 + 32 if 'temp' in data else None
+        data["dwpt"] = data["dwpt"] * 9/5 + 32 if 'dwpt' in data else None
+        data["wspd"] = data["wspd"] * 2.23694 if 'wspd' in data else None
+        data["wpgt"] = data["wpgt"] * 2.23694 if 'wpgt' in data else None
+        data["prcp"] = data["prcp"] / 25.4 if 'prcp' in data else None
+        data["snow"] = data["snow"] / 25.4 if 'snow' in data else None
+        data["pres"] = data["pres"] * 0.02953 if 'pres' in data else None
 
     # Replace NaN and infinite values with None to avoid JSON serialization issues
     data = data.replace([np.nan, np.inf, -np.inf], None)
@@ -103,18 +103,18 @@ def generate_log_lines(weather_data, sun_and_moon_info, encounter_id, alias, con
                 },
                 "moon_phase": sun_and_moon_info["moon_phase"],
                 "weather": {
-                    "temperature": row["temp"],
-                    "dew_point": row["dwpt"],
-                    "relative_humidity": row["rhum"],
-                    "precipitation": row["prcp"],
-                    "snow": row["snow"],
+                    "temperature": row.get("temp"),
+                    "dew_point": row.get("dwpt"),
+                    "relative_humidity": row.get("rhum"),
+                    "precipitation": row.get("prcp"),
+                    "snow": row.get("snow"),
                     "wind": {
-                        "speed": row["wspd"],
-                        "direction": row["wdir"],
-                        "gust": row["wpgt"]
+                        "speed": row.get("wspd"),
+                        "direction": row.get("wdir"),
+                        "gust": row.get("wpgt")
                     },
-                    "pressure": row["pres"],
-                    "sunshine": row["tsun"],
+                    "pressure": row.get("pres"),
+                    "sunshine": row.get("tsun"),
                     "station_name": row.get("station_name", "N/A"),
                     "alert": alert_message
                 },
