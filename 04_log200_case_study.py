@@ -48,14 +48,14 @@ def get_timezone(latitude, longitude):
 
 def convert_units(data, units):
     if units == 'imperial':
-        data['tavg'] = data['tavg'] * 9/5 + 32
-        data['tmin'] = data['tmin'] * 9/5 + 32
-        data['tmax'] = data['tmax'] * 9/5 + 32
-        data['wspd'] = data['wspd'] * 2.23694
-        data['wpgt'] = data['wpgt'] * 2.23694
-        data['prcp'] = data['prcp'] / 25.4
-        data['snow'] = data['snow'] / 25.4
-        data['pres'] = data['pres'] * 0.02953
+        data['tavg'] = data['tavg'] * 9/5 + 32 if 'tavg' in data else None
+        data['tmin'] = data['tmin'] * 9/5 + 32 if 'tmin' in data else None
+        data['tmax'] = data['tmax'] * 9/5 + 32 if 'tmax' in data else None
+        data['wspd'] = data['wspd'] * 2.23694 if 'wspd' in data else None
+        data['wpgt'] = data['wpgt'] * 2.23694 if 'wpgt' in data else None
+        data['prcp'] = data['prcp'] / 25.4 if 'prcp' in data else None
+        data['snow'] = data['snow'] / 25.4 if 'snow' in data else None
+        data['pres'] = data['pres'] * 0.02953 if 'pres' in data else None
     return data
 
 def fetch_weather_data(latitude, longitude, date_start, date_end, units):
@@ -137,19 +137,21 @@ def generate_log_lines(weather_data, encounter_id, alias, config):
                 },
                 "moon_phase": sun_and_moon_info["moon_phase"],
                 "weather": {
-                    "temperature": row["tavg"],
-                    "min_temperature": row["tmin"],
-                    "max_temperature": row["tmax"],
-                    "precipitation": row["prcp"],
-                    "snow": row["snow"],
+                    "temperature": row.get("tavg"),
+                    "min_temperature": row.get("tmin"),
+                    "max_temperature": row.get("tmax"),
+                    "dew_point": row.get("dwpt"),
+                    "precipitation": row.get("prcp"),
                     "wind": {
-                        "speed": row["wspd"],
-                        "direction": row["wdir"],
-                        "gust": row["wpgt"]
+                        "speed": row.get("wspd"),
+                        "direction": row.get("wdir"),
+                        "gust": row.get("wpgt")
                     },
-                    "pressure": row["pres"],
-                    "sunshine": row["tsun"],
-                    "humidity": row["rhum"],  # Include relative humidity
+                    "pressure": row.get("pres"),
+                    "sunshine": row.get("tsun"),
+                    "humidity": row.get("rhum"),  # Include relative humidity
+                    "snow": row.get("snow"),
+                    "weather_condition_code": row.get("coco"),
                     "station_name": row.get("station_name", "N/A")
                 },
                 "event": {
