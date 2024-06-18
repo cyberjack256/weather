@@ -160,6 +160,24 @@ def generate_extreme_weather_data(weather_data, extreme_field, high):
     logging.debug(f"Extreme weather data: {weather_data}")
     return weather_data, alert_message
 
+def get_moon_phase_name(moon_phase_value):
+    if moon_phase_value < 0.125:
+        return "New Moon"
+    elif moon_phase_value < 0.25:
+        return "Waxing Crescent"
+    elif moon_phase_value < 0.375:
+        return "First Quarter"
+    elif moon_phase_value < 0.5:
+        return "Waxing Gibbous"
+    elif moon_phase_value < 0.625:
+        return "Full Moon"
+    elif moon_phase_value < 0.75:
+        return "Waning Gibbous"
+    elif moon_phase_value < 0.875:
+        return "Last Quarter"
+    else:
+        return "Waning Crescent"
+
 def main():
     if not validate_config():
         return
@@ -182,6 +200,7 @@ def main():
     date_specified = datetime.utcnow()
     s = sun(city.observer, date=date_specified, tzinfo=city.timezone)
     moon_phase_value = phase(date_specified)
+    moon_phase_name = get_moon_phase_name(moon_phase_value)
     sun_and_moon_info = {
         'sun_info': {
             'dawn': s['dawn'].isoformat(),
@@ -190,7 +209,7 @@ def main():
             'sunset': s['sunset'].isoformat(),
             'dusk': s['dusk'].isoformat(),
         },
-        'moon_phase': moon_phase_value
+        'moon_phase': moon_phase_name
     }
 
     # Fetch weather data
