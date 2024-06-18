@@ -65,13 +65,32 @@ def fetch_weather_data(latitude, longitude, date_start, date_end, units):
     data = data.replace([np.nan, np.inf, -np.inf], None)
     return data
 
+def get_moon_phase_name(moon_phase_value):
+    if moon_phase_value < 0.125:
+        return "New Moon"
+    elif moon_phase_value < 0.25:
+        return "Waxing Crescent"
+    elif moon_phase_value < 0.375:
+        return "First Quarter"
+    elif moon_phase_value < 0.5:
+        return "Waxing Gibbous"
+    elif moon_phase_value < 0.625:
+        return "Full Moon"
+    elif moon_phase_value < 0.75:
+        return "Waning Gibbous"
+    elif moon_phase_value < 0.875:
+        return "Last Quarter"
+    else:
+        return "Waning Crescent"
+
 def generate_log_lines(weather_data, encounter_id, alias, config):
     log_lines = []
     for time, row in weather_data.iterrows():
         date = time.date()
         city = LocationInfo(config['city_name'], config['country_name'], config['timezone'], config['latitude'], config['longitude'])
         s = sun(city.observer, date=date, tzinfo=city.timezone)
-        moon_phase_value = phase(date)
+        moon_phase_value = (phase(date) % 30) / 30  # Normalize to [0, 1] range
+        moon_phase_name = get_moon_phase_name(moon_phase_value)
         sun_and_moon_info = {
             'sun_info': {
                 'dawn': s['dawn'].isoformat(),
@@ -80,7 +99,7 @@ def generate_log_lines(weather_data, encounter_id, alias, config):
                 'sunset': s['sunset'].isoformat(),
                 'dusk': s['dusk'].isoformat(),
             },
-            'moon_phase': moon_phase_value
+            'moon_phase': moon_phase_name
         }
 
         log_entry = {
