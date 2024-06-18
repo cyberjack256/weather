@@ -46,6 +46,18 @@ def get_timezone(latitude, longitude):
     else:
         raise Exception("Could not determine the timezone.")
 
+def convert_units(data, units):
+    if units == 'imperial':
+        data['tavg'] = data['tavg'] * 9/5 + 32
+        data['tmin'] = data['tmin'] * 9/5 + 32
+        data['tmax'] = data['tmax'] * 9/5 + 32
+        data['wspd'] = data['wspd'] * 2.23694
+        data['wpgt'] = data['wpgt'] * 2.23694
+        data['prcp'] = data['prcp'] / 25.4
+        data['snow'] = data['snow'] / 25.4
+        data['pres'] = data['pres'] * 0.02953
+    return data
+
 def fetch_weather_data(latitude, longitude, date_start, date_end, units):
     location = Point(latitude, longitude)
     start = datetime.strptime(date_start, '%Y-%m-%d')
@@ -60,6 +72,9 @@ def fetch_weather_data(latitude, longitude, date_start, date_end, units):
     if not station.empty:
         station_name = station.name.iloc[0]
         data['station_name'] = station_name
+
+    # Convert units if necessary
+    data = convert_units(data, units)
 
     # Replace NaN and infinite values with None to avoid JSON serialization issues
     data = data.replace([np.nan, np.inf, -np.inf], None)
@@ -134,6 +149,7 @@ def generate_log_lines(weather_data, encounter_id, alias, config):
                     },
                     "pressure": row["pres"],
                     "sunshine": row["tsun"],
+                    "humidity": row["rhum"],  # Include relative humidity
                     "station_name": row.get("station_name", "N/A")
                 },
                 "event": {
