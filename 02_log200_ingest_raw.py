@@ -51,6 +51,19 @@ def generate_raw_log(encounter_id, alias, units):
 
     return raw_log
 
+def construct_curl_command(logscale_api_url, logscale_api_token, raw_log):
+    """
+    Construct a curl command for sending the log to LogScale.
+    Args:
+        logscale_api_url (str): The LogScale API URL.
+        logscale_api_token (str): The LogScale API token.
+        raw_log (str): The raw log message.
+    Returns:
+        str: The constructed curl command.
+    """
+    curl_command = f"curl {logscale_api_url} -X POST -H 'Authorization: Bearer {logscale_api_token}' -H 'Content-Type: text/plain' --data '{raw_log}'"
+    return curl_command
+
 def send_to_logscale(logscale_api_url, logscale_api_token, raw_log):
     """
     Send raw log data to LogScale.
@@ -66,6 +79,11 @@ def send_to_logscale(logscale_api_url, logscale_api_token, raw_log):
         "Authorization": f"Bearer {logscale_api_token}",
         "Content-Type": "text/plain"
     }
+    curl_command = construct_curl_command(logscale_api_url, logscale_api_token, raw_log)
+    explainshell_url = f"https://explainshell.com/explain?cmd={requests.utils.quote(curl_command)}"
+    print(f"\nCurl Command:\n{curl_command}")
+    print(f"\nExplainshell Link:\n{explainshell_url}\n")
+    
     try:
         response = requests.post(logscale_api_url, data=raw_log, headers=headers)
         response.raise_for_status()
