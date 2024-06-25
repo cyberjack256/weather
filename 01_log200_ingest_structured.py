@@ -71,6 +71,24 @@ def generate_weather_event(encounter_id: str, alias: str, units: str = "metric")
     }
     return json_event
 
+def construct_curl_command(logscale_api_url, logscale_api_token, data):
+    """
+    Construct a curl command for sending the structured data to LogScale.
+    Args:
+        logscale_api_url (str): The LogScale API URL.
+        logscale_api_token (str): The LogScale API token.
+        data (List[Dict[str, Any]]): The structured data to send.
+    Returns:
+        str: The constructed curl command.
+    """
+    curl_command = (
+        f"curl {logscale_api_url} -X POST "
+        f"-H 'Authorization: Bearer {logscale_api_token}' "
+        f"-H 'Content-Type: application/json' "
+        f"--data '{json.dumps(data)}'"
+    )
+    return curl_command
+
 def send_to_logscale(logscale_api_token: str, data: List[Dict[str, Any]]) -> Tuple[int, str]:
     headers = {
         "Authorization": f"Bearer {logscale_api_token}",
@@ -83,6 +101,18 @@ def send_to_logscale(logscale_api_token: str, data: List[Dict[str, Any]]) -> Tup
         },
         "events": data
     }]
+    curl_command = construct_curl_command(LOGSCALE_URL, logscale_api_token, structured_data)
+    
+    print(f"\nSample Message:\n{json.dumps(data[0], indent=4)}")
+    print(f"\nSample Curl Command:\n{curl_command}")
+    print("\nBreakdown of Curl Command:")
+    print("1. `curl`: Command line tool for transferring data with URLs.")
+    print(f"2. `{LOGSCALE_URL}`: The URL to which the data is sent.")
+    print("3. `-X POST`: Specifies the request method to be POST.")
+    print("4. `-H 'Authorization: Bearer {logscale_api_token}'`: Adds the authorization header with the Bearer token for authentication.")
+    print("5. `-H 'Content-Type: application/json'`: Specifies the content type of the data being sent as JSON.")
+    print("6. `--data '{json.dumps(data)}'`: The actual structured data to be sent in the body of the POST request.")
+    
     response = requests.post(LOGSCALE_URL, json=structured_data, headers=headers)
     return response.status_code, response.text
 
