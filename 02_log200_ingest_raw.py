@@ -80,9 +80,16 @@ def send_to_logscale(logscale_api_url, logscale_api_token, raw_log):
         "Content-Type": "text/plain"
     }
     curl_command = construct_curl_command(logscale_api_url, logscale_api_token, raw_log)
-    explainshell_url = f"https://explainshell.com/explain?cmd={requests.utils.quote(curl_command)}"
-    print(f"\nCurl Command:\n{curl_command}")
-    print(f"\nExplainshell Link:\n{explainshell_url}\n")
+    
+    print(f"\nExample Log:\n{raw_log}")
+    print(f"\nExample Curl Command:\n{curl_command}")
+    print("\nBreakdown of Curl Command:")
+    print("1. `curl`: Command line tool for transferring data with URLs.")
+    print(f"2. `{logscale_api_url}`: The URL to which the data is sent.")
+    print("3. `-X POST`: Specifies the request method to be POST.")
+    print("4. `-H 'Authorization: Bearer {logscale_api_token}'`: Adds the authorization header with the Bearer token for authentication.")
+    print("5. `-H 'Content-Type: text/plain'`: Specifies the content type of the data being sent as plain text.")
+    print("6. `--data '{raw_log}'`: The actual raw log data to be sent in the body of the POST request.")
     
     try:
         response = requests.post(logscale_api_url, data=raw_log, headers=headers)
