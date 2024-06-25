@@ -113,16 +113,14 @@ def main():
         alias = config['alias']
         units = config.get('units', 'metric')
 
-        for _ in range(5):  # Generate 5 log entries
-            raw_log = generate_raw_log(encounter_id, alias, units)
-            logging.info(f"Generated raw log: {raw_log}")
-            status_code, response_text = send_to_logscale(logscale_api_url, logscale_api_token, raw_log)
-            logging.info(f"Status Code: {status_code}, Response: {response_text}")
+        raw_log = generate_raw_log(encounter_id, alias, units)
+        logging.info(f"Generated raw log: {raw_log}")
+        status_code, response_text = send_to_logscale(logscale_api_url, logscale_api_token, raw_log)
+        logging.info(f"Status Code: {status_code}, Response: {response_text}")
 
         # Display an example log line for user reference
-        example_log_line = generate_raw_log(encounter_id, alias, units)
         print("\nExample Log Line:")
-        print(example_log_line)
+        print(raw_log)
 
         # Description of the log line structure
         print("\nDescription:")
