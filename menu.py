@@ -29,9 +29,9 @@ FIELD_EXAMPLES = {
     'date_end': 'e.g., 2024-04-01',
     'encounter_id': 'e.g., jt30-0000000000000',
     'alias': 'e.g., racing-jack',
-    'units': 'e.g., metric or imperial',
-    'extreme_field': 'e.g., temperature or none',
-    'high': 'e.g., true, false, or none'
+    'units': '<metric> or imperial',
+    'extreme_field': 'temperature, wind_speed, precipitation, dew_point, or <none>',
+    'high': 'true, false, or <none>'
 }
 
 # Load configuration
