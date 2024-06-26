@@ -7,7 +7,6 @@ import subprocess
 logging.basicConfig(level=logging.DEBUG)
 
 CONFIG_FILE = 'config.json'
-
 LOGSCALE_URL = 'https://cloud.us.humio.com/api/v1/ingest/humio-structured'
 
 REQUIRED_FIELDS = {
@@ -31,8 +30,8 @@ FIELD_EXAMPLES = {
     'encounter_id': 'e.g., jt30',
     'alias': 'e.g., racing-jack',
     'units': 'e.g., metric or imperial',
-    'extreme_field': 'e.g., temperature',
-    'high': 'e.g., true or false'
+    'extreme_field': 'e.g., temperature or none',
+    'high': 'e.g., true, false, or none'
 }
 
 # Load configuration
@@ -167,8 +166,11 @@ Please select an option:
             for i, field in enumerate(FIELD_EXAMPLES.keys(), 1):
                 print(f"{i}. {field}")
             field_choice = input("\nEnter the number of the field you want to set: ").strip()
-            field = list(FIELD_EXAMPLES.keys())[int(field_choice) - 1]
-            set_config_field(field)
+            if field_choice.isdigit() and 1 <= int(field_choice) <= len(FIELD_EXAMPLES):
+                field = list(FIELD_EXAMPLES.keys())[int(field_choice) - 1]
+                set_config_field(field)
+            else:
+                print("Invalid choice. Please enter a number from the list.")
         elif choice == '6':
             if validate_config('01'):
                 run_script('01', '01_log200_ingest_structured.py')
@@ -199,7 +201,7 @@ Please select an option:
             break
         else:
             print("Invalid choice. Please try again.")
-
+        
         input("\nPress Enter to continue...")
 
 if __name__ == "__main__":
