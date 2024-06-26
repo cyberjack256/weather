@@ -11,6 +11,6 @@
     "date_start": "REPLACEME",
     "date_end": "REPLACEME",
     "units": "metric",
-    "extreme_field": "REPLACEME",
-    "high": "REPLACEME"
+    "extreme_field": "none",
+    "high": "none"
 }
