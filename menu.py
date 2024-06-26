@@ -27,7 +27,7 @@ FIELD_EXAMPLES = {
     'longitude': 'e.g., -83.7430',
     'date_start': 'e.g., 2023-04-01',
     'date_end': 'e.g., 2024-04-01',
-    'encounter_id': 'e.g., jt30',
+    'encounter_id': 'e.g., jt30-0000000000000',
     'alias': 'e.g., racing-jack',
     'units': 'e.g., metric or imperial',
     'extreme_field': 'e.g., temperature or none',
