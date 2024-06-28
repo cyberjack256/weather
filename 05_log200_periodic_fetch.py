@@ -18,7 +18,7 @@ logging.basicConfig(level=logging.DEBUG)
 CONFIG_FILE = 'config.json'
 REQUIRED_FIELDS = [
     'logscale_api_token_case_study', 'encounter_id', 'alias',
-    'city_name', 'country_name', 'latitude', 'longitude', 'units'
+    'city_name', 'country_name', 'latitude', 'longitude', 'units', 'extreme_field', 'extreme_level'
 ]
 LOGSCALE_URL = 'https://cloud.us.humio.com/api/v1/ingest/humio-structured'
 
@@ -158,15 +158,15 @@ def generate_extreme_weather_data(weather_data, extreme_field, extreme_level, un
     logging.debug(f"Generating extreme weather data for {extreme_field}...")
     extreme_values_metric = {
         "temperature": (50, -50),  # High and low extreme temperatures in °C
-        "wspd": (100, 0),          # High and low extreme wind speeds in km/h
-        "prcp": (500, 0),          # High and low extreme precipitation in mm
-        "dwpt": (30, -30)          # High and low extreme dew points in °C
+        "wind_speed": (100, 0),    # High and low extreme wind speeds in km/h
+        "precipitation": (500, 0), # High and low extreme precipitation in mm
+        "dew_point": (30, -30)     # High and low extreme dew points in °C
     }
     extreme_values_imperial = {
         "temperature": (122, -58),  # High and low extreme temperatures in °F
-        "wspd": (62.14, 0),         # High and low extreme wind speeds in mph
-        "prcp": (19.69, 0),         # High and low extreme precipitation in inches
-        "dwpt": (86, -22)           # High and low extreme dew points in °F
+        "wind_speed": (62.14, 0),   # High and low extreme wind speeds in mph
+        "precipitation": (19.69, 0),# High and low extreme precipitation in inches
+        "dew_point": (86, -22)      # High and low extreme dew points in °F
     }
 
     extreme_values = extreme_values_imperial if units == 'imperial' else extreme_values_metric
@@ -180,11 +180,11 @@ def generate_extreme_weather_data(weather_data, extreme_field, extreme_level, un
         # Set the appropriate weather condition code based on extreme values
         if extreme_field == "temperature":
             weather_data.at[time, "coco"] = 1 if extreme_level.lower() == 'high' else 2  # Example condition codes
-        elif extreme_field == "wspd":
+        elif extreme_field == "wind_speed":
             weather_data.at[time, "coco"] = 3 if extreme_level.lower() == 'high' else 4
-        elif extreme_field == "prcp":
+        elif extreme_field == "precipitation":
             weather_data.at[time, "coco"] = 5 if extreme_level.lower() == 'high' else 6
-        elif extreme_field == "dwpt":
+        elif extreme_field == "dew_point":
             weather_data.at[time, "coco"] = 7 if extreme_level.lower() == 'high' else 8
     alert_message = f"Extreme {extreme_field} alert: {extreme_value}"
     weather_data["alert"] = alert_message
@@ -220,7 +220,7 @@ def main():
     latitude = float(config['latitude'])
     longitude = float(config['longitude'])
     units = config['units']
-    extreme_field = config.get('extreme_field', None)
+    extreme_field = config.get('extreme_field', 'none')
     extreme_level = config.get('extreme_level', 'none')
 
     # Get timezone
