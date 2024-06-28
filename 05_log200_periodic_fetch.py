@@ -122,12 +122,7 @@ def generate_log_lines(weather_data, sun_and_moon_info, encounter_id, alias, con
         event_time = datetime.utcnow() + timedelta(seconds=index)  # Ensure each event has a unique timestamp
         log_entry = {
             "@timestamp": event_time.isoformat() + "Z",
-            "event": {
-                "report_time": time.strftime('%Y-%m-%dT%H:%M:%SZ'),
-                "created": event_time.isoformat() + "Z",
-                "module": "weather",
-                "dataset": "weather"
-            },
+            "report_time": time.strftime('%Y-%m-%dT%H:%M:%SZ'),
             "attributes": {
                 "geo": {
                     "city_name": config["city_name"],
@@ -144,9 +139,7 @@ def generate_log_lines(weather_data, sun_and_moon_info, encounter_id, alias, con
                 "ecs": {
                     "version": "1.12.0"
                 },
-                "moon": {
-                    "phase": sun_and_moon_info["moon_phase"]
-                },
+                "moon_phase": sun_and_moon_info["moon_phase"],
                 "weather": {
                     "temperature": row.get("temp"),
                     "dew_point": row.get("dwpt"),
@@ -163,6 +156,11 @@ def generate_log_lines(weather_data, sun_and_moon_info, encounter_id, alias, con
                     "station_name": row.get("station_name", "N/A"),
                     "condition_code": row.get("coco"),
                     "alert": alert_message
+                },
+                "event": {
+                    "created": event_time.isoformat() + "Z",
+                    "module": "weather",
+                    "dataset": "weather"
                 },
                 "sun": {
                     "sunrise": sun_and_moon_info["sun_info"]["sunrise"],
@@ -219,66 +217,3 @@ def main():
     alias = config['alias']
     latitude = float(config['latitude'])
     longitude = float(config['longitude'])
-    units = config['units']
-    extreme_field = config.get('extreme_field', 'none')
-    extreme_level = config.get('extreme_level', 'none')
-
-    # Get timezone
-    timezone = get_timezone(latitude, longitude)
-
-    # Fetch sun and moon data
-    city = LocationInfo(config['city_name'], config['country_name'], timezone, latitude, longitude)
-    date_specified = datetime.utcnow()
-    s = sun(city.observer, date=date_specified, tzinfo=city.timezone)
-    moon_phase_value = (phase(date_specified) % 30) / 30  # Normalize to [0, 1] range
-    moon_phase_name = get_moon_phase_name(moon_phase_value)
-    sun_and_moon_info = {
-        'sun_info': {
-            'dawn': s['dawn'].isoformat(),
-            'sunrise': s['sunrise'].isoformat(),
-            'noon': s['noon'].isoformat(),
-            'sunset': s['sunset'].isoformat(),
-            'dusk': s['dusk'].isoformat(),
-        },
-        'moon_phase': moon_phase_name
-    }
-
-    # Fetch weather data
-    weather_data = fetch_weather_data(latitude, longitude, units)
-    if weather_data.empty:
-        logging.error("No weather data fetched.")
-        return
-
-    # Generate extreme weather data if specified
-    alert_message = ""
-    if extreme_field and extreme_field.lower() != 'none':
-        weather_data, alert_message = generate_extreme_weather_data(weather_data, extreme_field, extreme_level, units)
-
-    # Generate log lines
-    log_lines = generate_log_lines(weather_data, sun_and_moon_info, encounter_id, alias, config, alert_message)
-    if not log_lines:
-        logging.error("No log lines generated.")
-        return
-
-    # Display a summary for user reference
-    print("\nSummary of Changes:")
-    if alert_message:
-        print(f"- Extreme values applied for {extreme_field}: {weather_data.loc[weather_data.index[0], extreme_field]}")
-        print(f"- Alert generated: {alert_message}")
-    else:
-        print("- No extreme values applied.")
-    print(f"\nSearch for the following fields in LogScale:")
-    print(f"- observer.id: {encounter_id}")
-    print(f"- observer.alias: {alias}")
-
-    # Display an example log line for user reference
-    example_log_line = json.dumps(log_lines[0], indent=4)
-    print("\nExample Log Line:")
-    print(example_log_line)
-
-    # Send log lines to LogScale
-    status_code, response_text = send_to_logscale(log_lines, logscale_api_token)
-    logging.info(f"Response from LogScale: Status Code: {status_code}, Response: {response_text}")
-
-if __name__ == "__main__":
-    main()
