@@ -151,8 +151,8 @@ def send_to_logscale(log_lines, logscale_api_token):
     response = requests.post(LOGSCALE_URL, json=payload, headers=headers)
     return response.status_code, response.text
 
-def generate_extreme_weather_data(weather_data, extreme_field, high, units):
-    if extreme_field is None or extreme_field.lower() == 'null':
+def generate_extreme_weather_data(weather_data, extreme_field, extreme_level, units):
+    if extreme_field is None or extreme_field.lower() == 'none' or extreme_level is None or extreme_level.lower() == 'none':
         return weather_data, ""
 
     logging.debug(f"Generating extreme weather data for {extreme_field}...")
@@ -174,18 +174,18 @@ def generate_extreme_weather_data(weather_data, extreme_field, high, units):
     if high_value is None or low_value is None:
         logging.error(f"Invalid extreme field: {extreme_field}")
         return weather_data, ""
-    extreme_value = high_value if high else low_value
+    extreme_value = high_value if extreme_level.lower() == 'high' else low_value
     for time in weather_data.index:
         weather_data.at[time, extreme_field] = extreme_value
         # Set the appropriate weather condition code based on extreme values
         if extreme_field == "temperature":
-            weather_data.at[time, "coco"] = 1 if high else 2  # Example condition codes
+            weather_data.at[time, "coco"] = 1 if extreme_level.lower() == 'high' else 2  # Example condition codes
         elif extreme_field == "wspd":
-            weather_data.at[time, "coco"] = 3 if high else 4
+            weather_data.at[time, "coco"] = 3 if extreme_level.lower() == 'high' else 4
         elif extreme_field == "prcp":
-            weather_data.at[time, "coco"] = 5 if high else 6
+            weather_data.at[time, "coco"] = 5 if extreme_level.lower() == 'high' else 6
         elif extreme_field == "dwpt":
-            weather_data.at[time, "coco"] = 7 if high else 8
+            weather_data.at[time, "coco"] = 7 if extreme_level.lower() == 'high' else 8
     alert_message = f"Extreme {extreme_field} alert: {extreme_value}"
     weather_data["alert"] = alert_message
     logging.debug(f"Extreme weather data: {weather_data}")
@@ -221,7 +221,7 @@ def main():
     longitude = float(config['longitude'])
     units = config['units']
     extreme_field = config.get('extreme_field', None)
-    high = config.get('high', True)
+    extreme_level = config.get('extreme_level', 'none')
 
     # Get timezone
     timezone = get_timezone(latitude, longitude)
@@ -251,8 +251,8 @@ def main():
 
     # Generate extreme weather data if specified
     alert_message = ""
-    if extreme_field and extreme_field.lower() != 'null':
-        weather_data, alert_message = generate_extreme_weather_data(weather_data, extreme_field, high, units)
+    if extreme_field and extreme_field.lower() != 'none':
+        weather_data, alert_message = generate_extreme_weather_data(weather_data, extreme_field, extreme_level, units)
 
     # Generate log lines
     log_lines = generate_log_lines(weather_data, sun_and_moon_info, encounter_id, alias, config, alert_message)
