@@ -118,9 +118,16 @@ def generate_log_lines(weather_data, sun_and_moon_info, encounter_id, alias, con
         return []
 
     log_lines = []
-    for time, row in weather_data.iterrows():
+    for index, (time, row) in enumerate(weather_data.iterrows()):
+        event_time = datetime.utcnow() + timedelta(seconds=index)  # Ensure each event has a unique timestamp
         log_entry = {
-            "timestamp": time.strftime('%Y-%m-%dT%H:%M:%SZ'),
+            "@timestamp": event_time.isoformat() + "Z",
+            "event": {
+                "report_time": time.strftime('%Y-%m-%dT%H:%M:%SZ'),
+                "created": event_time.isoformat() + "Z",
+                "module": "weather",
+                "dataset": "weather"
+            },
             "attributes": {
                 "geo": {
                     "city_name": config["city_name"],
@@ -137,7 +144,9 @@ def generate_log_lines(weather_data, sun_and_moon_info, encounter_id, alias, con
                 "ecs": {
                     "version": "1.12.0"
                 },
-                "moon_phase": sun_and_moon_info["moon_phase"],
+                "moon": {
+                    "phase": sun_and_moon_info["moon_phase"]
+                },
                 "weather": {
                     "temperature": row.get("temp"),
                     "dew_point": row.get("dwpt"),
@@ -154,11 +163,6 @@ def generate_log_lines(weather_data, sun_and_moon_info, encounter_id, alias, con
                     "station_name": row.get("station_name", "N/A"),
                     "condition_code": row.get("coco"),
                     "alert": alert_message
-                },
-                "event": {
-                    "created": datetime.utcnow().isoformat() + "Z",
-                    "module": "weather",
-                    "dataset": "weather"
                 },
                 "sun": {
                     "sunrise": sun_and_moon_info["sun_info"]["sunrise"],
