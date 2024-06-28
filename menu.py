@@ -34,6 +34,9 @@ FIELD_EXAMPLES = {
     'extreme_level': 'high, low, or <none>'
 }
 
+EXTREME_FIELDS = ['temperature', 'wind_speed', 'precipitation', 'dew_point', 'none']
+EXTREME_LEVELS = ['high', 'low', 'none']
+
 # Load configuration
 def load_config():
     if os.path.exists(CONFIG_FILE):
@@ -58,10 +61,33 @@ def show_config(script_id):
 def set_config_field(field):
     config = load_config()
     example = FIELD_EXAMPLES.get(field, '')
-    new_value = input(f"Enter the value for {field} ({example}):\n").strip()
-    config[field] = new_value
+    
+    if field == 'extreme_field':
+        print("Select the extreme field:")
+        for i, value in enumerate(EXTREME_FIELDS, 1):
+            print(f"{i}. {value}")
+        choice = input(f"Enter the number for the extreme field ({example}):\n").strip()
+        if choice.isdigit() and 1 <= int(choice) <= len(EXTREME_FIELDS):
+            config[field] = EXTREME_FIELDS[int(choice) - 1]
+        else:
+            print("Invalid choice. Setting to default (none).")
+            config[field] = 'none'
+    elif field == 'extreme_level':
+        print("Select the extreme level:")
+        for i, value in enumerate(EXTREME_LEVELS, 1):
+            print(f"{i}. {value}")
+        choice = input(f"Enter the number for the extreme level ({example}):\n").strip()
+        if choice.isdigit() and 1 <= int(choice) <= len(EXTREME_LEVELS):
+            config[field] = EXTREME_LEVELS[int(choice) - 1]
+        else:
+            print("Invalid choice. Setting to default (none).")
+            config[field] = 'none'
+    else:
+        new_value = input(f"Enter the value for {field} ({example}):\n").strip()
+        config[field] = new_value
+    
     save_config(config)
-    print(f"Configuration updated: {field} set to {new_value}")
+    print(f"Configuration updated: {field} set to {config[field]}")
 
 # Validate configuration
 def validate_config(script_id):
@@ -135,22 +161,26 @@ def main_menu():
     while True:
         os.system('clear')
         print("""
-Welcome to the Weather Data Ingest Menu
-Please select an option:
-
-1. Show options for 01_log200_ingest_structured.py (Structured Data)
-2. Show options for 02_log200_ingest_raw.py (Unstructured Data)
-3. Show options for 04_log200_case_study.py (Historical Data)
-4. Show options for 05_log200_periodic_fetch.py (Periodic Fetch)
-5. Set a configuration field
-6. Run 01_log200_ingest_structured.py
-7. Run 02_log200_ingest_raw.py
-8. Run 04_log200_case_study.py
-9. Run 05_log200_periodic_fetch.py
-10. Set up cron job for 05_log200_periodic_fetch.py
-11. Show current cron job for 05_log200_periodic_fetch.py
-12. Delete cron job for 05_log200_periodic_fetch.py
-0. Exit
+╔════════════════════════════════════════════════════════════════════════════╗
+║                              CrowdStrike Menu                              ║
+║════════════════════════════════════════════════════════════════════════════║
+║ Welcome to the CrowdStrike Weather Data Ingest Menu                        ║
+║ Please select an option:                                                   ║
+║                                                                            ║
+║  1. Show options for 01_log200_ingest_structured.py (Structured Data)      ║
+║  2. Show options for 02_log200_ingest_raw.py (Unstructured Data)           ║
+║  3. Show options for 04_log200_case_study.py (Historical Data)             ║
+║  4. Show options for 05_log200_periodic_fetch.py (Periodic Fetch)          ║
+║  5. Set a configuration field                                              ║
+║  6. Run 01_log200_ingest_structured.py                                     ║
+║  7. Run 02_log200_ingest_raw.py                                            ║
+║  8. Run 04_log200_case_study.py                                            ║
+║  9. Run 05_log200_periodic_fetch.py                                        ║
+║ 10. Set up cron job for 05_log200_periodic_fetch.py                        ║
+║ 11. Show current cron job for 05_log200_periodic_fetch.py                  ║
+║ 12. Delete cron job for 05_log200_periodic_fetch.py                        ║
+║  0. Exit                                                                   ║
+╚════════════════════════════════════════════════════════════════════════════╝
         """)
         choice = input("Enter your choice: ").strip()
 
@@ -163,11 +193,12 @@ Please select an option:
         elif choice == '4':
             show_config('05')
         elif choice == '5':
-            for i, field in enumerate(FIELD_EXAMPLES.keys(), 1):
+            sorted_fields = sorted(FIELD_EXAMPLES.keys())
+            for i, field in enumerate(sorted_fields, 1):
                 print(f"{i}. {field}")
             field_choice = input("\nEnter the number of the field you want to set: ").strip()
-            if field_choice.isdigit() and 1 <= int(field_choice) <= len(FIELD_EXAMPLES):
-                field = list(FIELD_EXAMPLES.keys())[int(field_choice) - 1]
+            if field_choice.isdigit() and 1 <= int(field_choice) <= len(sorted_fields):
+                field = sorted_fields[int(field_choice) - 1]
                 set_config_field(field)
             else:
                 print("Invalid choice. Please enter a number from the list.")
