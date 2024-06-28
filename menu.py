@@ -30,11 +30,11 @@ FIELD_EXAMPLES = {
     'encounter_id': 'e.g., jt30-0000000000000',
     'alias': 'e.g., racing-jack',
     'units': '<metric> or imperial',
-    'extreme_field': 'temperature, wind_speed, precipitation, dew_point, or <none>',
+    'extreme_field': 'tmp, , precipitation, dew_point, or <none>',
     'extreme_level': 'high, low, or <none>'
 }
 
-EXTREME_FIELDS = ['temperature', 'wind_speed', 'precipitation', 'dew_point', 'none']
+EXTREME_FIELDS = ['temperature', 'wspd', 'prcp', 'dwpt', 'none']
 EXTREME_LEVELS = ['high', 'low', 'none']
 
 # Load configuration
