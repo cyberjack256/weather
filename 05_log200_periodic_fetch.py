@@ -80,7 +80,8 @@ def generate_extreme_weather_data(weather_data, extreme_field, extreme_level, un
     if extreme_field is None or extreme_field.lower() == 'none' or extreme_level is None or extreme_level.lower() == 'none':
         return weather_data, ""
 
-    logging.debug(f"Generating extreme weather data for {extreme_field}...")
+    logging.debug(f"Original weather data: {weather_data}")
+
     extreme_values_metric = {
         "temp": (50, -50),  # High and low extreme temperatures in °C
         "wspd": (100, 0),    # High and low extreme wind speeds in km/h
@@ -102,15 +103,9 @@ def generate_extreme_weather_data(weather_data, extreme_field, extreme_level, un
     extreme_value = high_value if extreme_level.lower() == 'high' else low_value
     for time in weather_data.index:
         weather_data.at[time, extreme_field] = extreme_value
-        # Set the appropriate weather condition code based on extreme values
-        if extreme_field == "temp":
-            weather_data.at[time, "coco"] = 1 if extreme_level.lower() == 'high' else 2  # Example condition codes
-        elif extreme_field == "wspd":
-            weather_data.at[time, "coco"] = 3 if extreme_level.lower() == 'high' else 4
-        elif extreme_field == "prcp":
-            weather_data.at[time, "coco"] = 5 if extreme_level.lower() == 'high' else 6
-        elif extreme_field == "dwpt":
-            weather_data.at[time, "coco"] = 7 if extreme_level.lower() == 'high' else 8
+
+    logging.debug(f"Weather data after applying extreme values: {weather_data}")
+
     alert_message = f"Extreme {extreme_field} alert: {extreme_value}"
     weather_data["alert"] = alert_message
     logging.debug(f"Extreme weather data: {weather_data}")
@@ -249,10 +244,14 @@ def main():
         logging.error("No weather data fetched.")
         return
 
+    logging.debug(f"Fetched weather data: {weather_data}")
+
     # Generate extreme weather data if specified
     alert_message = ""
     if extreme_field and extreme_field.lower() != 'none':
         weather_data, alert_message = generate_extreme_weather_data(weather_data, extreme_field, extreme_level, units)
+
+    logging.debug(f"Weather data to be logged: {weather_data}")
 
     # Generate log lines
     log_lines = generate_log_lines(weather_data, sun_and_moon_info, encounter_id, alias, config, alert_message)
