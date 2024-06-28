@@ -178,13 +178,13 @@ def generate_extreme_weather_data(weather_data, extreme_field, extreme_level, un
     for time in weather_data.index:
         weather_data.at[time, extreme_field] = extreme_value
         # Set the appropriate weather condition code based on extreme values
-        if extreme_field == "temperature":
+        if extreme_field == "weather.temperature":
             weather_data.at[time, "coco"] = 1 if extreme_level.lower() == 'high' else 2  # Example condition codes
-        elif extreme_field == "wind_speed":
+        elif extreme_field == "weather.wind_speed":
             weather_data.at[time, "coco"] = 3 if extreme_level.lower() == 'high' else 4
-        elif extreme_field == "precipitation":
+        elif extreme_field == "weather.precipitation":
             weather_data.at[time, "coco"] = 5 if extreme_level.lower() == 'high' else 6
-        elif extreme_field == "dew_point":
+        elif extreme_field == "weather.dew_point":
             weather_data.at[time, "coco"] = 7 if extreme_level.lower() == 'high' else 8
     alert_message = f"Extreme {extreme_field} alert: {extreme_value}"
     weather_data["alert"] = alert_message
