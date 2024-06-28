@@ -259,13 +259,18 @@ def main():
     # Display a summary for user reference
     print("\nSummary of Changes:")
     if alert_message:
-        print(f"- Extreme values applied for {extreme_field}: {weather_data[extreme_field][0]}")
+        print(f"- Extreme values applied for {extreme_field}: {weather_data.loc[weather_data.index[0], extreme_field]}")
         print(f"- Alert generated: {alert_message}")
     else:
         print("- No extreme values applied.")
     print(f"\nSearch for the following fields in LogScale:")
     print(f"- observer.id: {encounter_id}")
     print(f"- observer.alias: {alias}")
+
+    # Display an example log line for user reference
+    example_log_line = json.dumps(log_lines[0], indent=4)
+    print("\nExample Log Line:")
+    print(example_log_line)
 
     # Send log lines to LogScale
     status_code, response_text = send_to_logscale(log_lines, logscale_api_token)
