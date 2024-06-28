@@ -121,10 +121,10 @@ def generate_log_lines(weather_data, sun_and_moon_info, encounter_id, alias, con
     for index, (time, row) in enumerate(weather_data.iterrows()):
         event_time = datetime.utcnow() + timedelta(seconds=index)  # Ensure each event has a unique timestamp
         log_entry = {
-            "@timestamp": event_time.isoformat() + "Z",
+            "timestamp": event_time.isoformat() + "Z",
             "event": {
                 "report_time": time.strftime('%Y-%m-%dT%H:%M:%SZ'),
-                "created": event_time.isoformat() + "Z",
+                "created": time.strftime('%Y-%m-%dT%H:%M:%SZ'),
                 "module": "weather",
                 "dataset": "weather"
             },
