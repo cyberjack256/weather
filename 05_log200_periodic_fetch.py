@@ -76,6 +76,46 @@ def fetch_weather_data(latitude, longitude, units):
     data = data.replace([np.nan, np.inf, -np.inf], None)
     return data
 
+def generate_extreme_weather_data(weather_data, extreme_field, extreme_level, units):
+    if extreme_field is None or extreme_field.lower() == 'none' or extreme_level is None or extreme_level.lower() == 'none':
+        return weather_data, ""
+
+    logging.debug(f"Generating extreme weather data for {extreme_field}...")
+    extreme_values_metric = {
+        "temp": (50, -50),  # High and low extreme temperatures in °C
+        "wspd": (100, 0),    # High and low extreme wind speeds in km/h
+        "prcp": (500, 0), # High and low extreme precipitation in mm
+        "dwpt": (30, -30)     # High and low extreme dew points in °C
+    }
+    extreme_values_imperial = {
+        "temp": (122, -58),  # High and low extreme temperatures in °F
+        "wspd": (62.14, 0),   # High and low extreme wind speeds in mph
+        "prcp": (19.69, 0),# High and low extreme precipitation in inches
+        "dwpt": (86, -22)      # High and low extreme dew points in °F
+    }
+
+    extreme_values = extreme_values_imperial if units == 'imperial' else extreme_values_metric
+    high_value, low_value = extreme_values.get(extreme_field, (None, None))
+    if high_value is None or low_value is None:
+        logging.error(f"Invalid extreme field: {extreme_field}")
+        return weather_data, ""
+    extreme_value = high_value if extreme_level.lower() == 'high' else low_value
+    for time in weather_data.index:
+        weather_data.at[time, extreme_field] = extreme_value
+        # Set the appropriate weather condition code based on extreme values
+        if extreme_field == "temp":
+            weather_data.at[time, "coco"] = 1 if extreme_level.lower() == 'high' else 2  # Example condition codes
+        elif extreme_field == "wspd":
+            weather_data.at[time, "coco"] = 3 if extreme_level.lower() == 'high' else 4
+        elif extreme_field == "prcp":
+            weather_data.at[time, "coco"] = 5 if extreme_level.lower() == 'high' else 6
+        elif extreme_field == "dwpt":
+            weather_data.at[time, "coco"] = 7 if extreme_level.lower() == 'high' else 8
+    alert_message = f"Extreme {extreme_field} alert: {extreme_value}"
+    weather_data["alert"] = alert_message
+    logging.debug(f"Extreme weather data: {weather_data}")
+    return weather_data, alert_message
+
 def generate_log_lines(weather_data, sun_and_moon_info, encounter_id, alias, config, alert_message):
     if weather_data.empty:
         logging.error("Weather data is empty.")
@@ -150,46 +190,6 @@ def send_to_logscale(log_lines, logscale_api_token):
     }]
     response = requests.post(LOGSCALE_URL, json=payload, headers=headers)
     return response.status_code, response.text
-
-def generate_extreme_weather_data(weather_data, extreme_field, extreme_level, units):
-    if extreme_field is None or extreme_field.lower() == 'none' or extreme_level is None or extreme_level.lower() == 'none':
-        return weather_data, ""
-
-    logging.debug(f"Generating extreme weather data for {extreme_field}...")
-    extreme_values_metric = {
-        "temp": (50, -50),  # High and low extreme temperatures in °C
-        "wspd": (100, 0),    # High and low extreme wind speeds in km/h
-        "prcp": (500, 0), # High and low extreme precipitation in mm
-        "dwpt": (30, -30)     # High and low extreme dew points in °C
-    }
-    extreme_values_imperial = {
-        "temp": (122, -58),  # High and low extreme temperatures in °F
-        "wspd": (62.14, 0),   # High and low extreme wind speeds in mph
-        "prcp": (19.69, 0),# High and low extreme precipitation in inches
-        "dwpt": (86, -22)      # High and low extreme dew points in °F
-    }
-
-    extreme_values = extreme_values_imperial if units == 'imperial' else extreme_values_metric
-    high_value, low_value = extreme_values.get(extreme_field, (None, None))
-    if high_value is None or low_value is None:
-        logging.error(f"Invalid extreme field: {extreme_field}")
-        return weather_data, ""
-    extreme_value = high_value if extreme_level.lower() == 'high' else low_value
-    for time in weather_data.index:
-        weather_data.at[time, extreme_field] = extreme_value
-        # Set the appropriate weather condition code based on extreme values
-        if extreme_field == "temp":
-            weather_data.at[time, "coco"] = 1 if extreme_level.lower() == 'high' else 2  # Example condition codes
-        elif extreme_field == "wspd":
-            weather_data.at[time, "coco"] = 3 if extreme_level.lower() == 'high' else 4
-        elif extreme_field == "prcp":
-            weather_data.at[time, "coco"] = 5 if extreme_level.lower() == 'high' else 6
-        elif extreme_field == "dwpt":
-            weather_data.at[time, "coco"] = 7 if extreme_level.lower() == 'high' else 8
-    alert_message = f"Extreme {extreme_field} alert: {extreme_value}"
-    weather_data["alert"] = alert_message
-    logging.debug(f"Extreme weather data: {weather_data}")
-    return weather_data, alert_message
 
 def get_moon_phase_name(moon_phase_value):
     if moon_phase_value < 0.125:
