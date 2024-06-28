@@ -2,8 +2,8 @@ import json
 import os
 import random
 import requests
+import uuid
 from datetime import datetime, timedelta
-from typing import Dict, Any
 
 # Set up logging
 import logging
@@ -29,28 +29,119 @@ def validate_config():
         return False
     return True
 
-def generate_raw_log(encounter_id, alias):
+def generate_uuid():
+    return str(uuid.uuid4())
+
+def generate_ip():
+    return f"192.0.{random.randint(0, 255)}.{random.randint(0, 255)}"
+
+def generate_proofpoint_logs(encounter_id, alias):
     """
-    Generate a raw log entry with fake pfSense data.
+    Generate fake Proofpoint logs.
     Args:
         encounter_id (str): The encounter ID for the event.
         alias (str): The alias for the event.
     Returns:
         str: The generated raw log entry.
     """
-    timestamp = (datetime.utcnow() - timedelta(minutes=random.randint(1, 5))).isoformat() + "Z"
+    current_time = datetime.utcnow()
     
-    log_types = ["Firewall", "VPN", "DHCP", "DNS"]
-    log_type = random.choice(log_types)
-    action = random.choice(["ALLOW", "BLOCK"])
-    src_ip = f"192.168.{random.randint(0, 255)}.{random.randint(0, 255)}"
-    dest_ip = f"10.0.{random.randint(0, 255)}.{random.randint(0, 255)}"
-    port = random.randint(1, 65535)
-    message = f"{log_type} {action} from {src_ip} to {dest_ip} on port {port}"
+    clicks_permitted_log = {
+        "campaignId": generate_uuid(),
+        "classification": "MALWARE",
+        "clickIP": generate_ip(),
+        "clickTime": (current_time - timedelta(minutes=random.randint(1, 5))).isoformat() + "Z",
+        "GUID": generate_uuid(),
+        "id": generate_uuid(),
+        "messageID": generate_uuid(),
+        "recipient": "bruce.wayne@pharmtech.zz",
+        "sender": f"{generate_uuid()}@badguy.zz",
+        "senderIP": generate_ip(),
+        "threatID": generate_uuid(),
+        "threatTime": (current_time - timedelta(minutes=random.randint(1, 5))).isoformat() + "Z",
+        "threatURL": f"https://threatinsight.proofpoint.com/#/{generate_uuid()}/threat/u/{generate_uuid()}",
+        "threatStatus": "active",
+        "url": "http://badguy.zz/",
+        "userAgent": "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:27.0) Gecko/20100101 Firefox/27.0"
+    }
 
-    raw_log = f"[{timestamp}] {message}, Encounter ID: {encounter_id}, Alias: {alias}"
-    
-    return raw_log
+    messages_blocked_log = {
+        "GUID": generate_uuid(),
+        "QID": "r2FNwRHF004109",
+        "ccAddresses": ["bruce.wayne@university-of-education.zz"],
+        "clusterId": "pharmtech_hosted",
+        "completelyRewritten": "true",
+        "fromAddress": "badguy@evil.zz",
+        "headerCC": "\"Bruce Wayne\" <bruce.wayne@university-of-education.zz>",
+        "headerFrom": "\"A. Badguy\" <badguy@evil.zz>",
+        "headerReplyTo": None,
+        "headerTo": "\"Clark Kent\" <clark.kent@pharmtech.zz>; \"Diana Prince\" <diana.prince@pharmtech.zz>",
+        "impostorScore": 0,
+        "malwareScore": 100,
+        "messageID": f"{current_time.strftime('%Y%m%d%H%M%S')}.mail@evil.zz",
+        "messageParts": [
+            {
+                "contentType": "text/plain",
+                "disposition": "inline",
+                "filename": "text.txt",
+                "md5": "008c5926ca861023c1d2a36653fd88e2",
+                "oContentType": "text/plain",
+                "sandboxStatus": "unsupported",
+                "sha256": "85738f8f9a7f1b04b5329c590ebcb9e425925c6d0984089c43a022de4f19c281"
+            },
+            {
+                "contentType": "application/pdf",
+                "disposition": "attached",
+                "filename": "Invoice for Pharmtech.pdf",
+                "md5": "5873c7d37608e0d49bcaa6f32b6c731f",
+                "oContentType": "application/pdf",
+                "sandboxStatus": "threat",
+                "sha256": "2fab740f143fc1aa4c1cd0146d334c5593b1428f6d062b2c406e5efe8abe95ca"
+            }
+        ],
+        "messageTime": current_time.isoformat() + "Z",
+        "modulesRun": ["pdr", "sandbox", "spam", "urldefense"],
+        "phishScore": 46,
+        "policyRoutes": ["default_inbound", "executives"],
+        "quarantineFolder": "Attachment Defense",
+        "quarantineRule": "module.sandbox.threat",
+        "recipient": ["clark.kent@pharmtech.zz", "diana.prince@pharmtech.zz"],
+        "replyToAddress": None,
+        "sender": f"{generate_uuid()}@evil.zz",
+        "senderIP": generate_ip(),
+        "spamScore": 4,
+        "subject": "Please find a totally safe invoice attached.",
+        "threatsInfoMap": [
+            {
+                "campaignId": generate_uuid(),
+                "classification": "MALWARE",
+                "threat": "2fab740f143fc1aa4c1cd0146d334c5593b1428f6d062b2c406e5efe8abe95ca",
+                "threatId": "2fab740f143fc1aa4c1cd0146d334c5593b1428f6d062b2c406e5efe8abe95ca",
+                "threatStatus": "active",
+                "threatTime": current_time.isoformat() + "Z",
+                "threatType": "ATTACHMENT",
+                "threatUrl": f"https://threatinsight.proofpoint.com/#/{generate_uuid()}/threat/u/{generate_uuid()}"
+            },
+            {
+                "campaignId": generate_uuid(),
+                "classification": "MALWARE",
+                "threat": "badsite.zz",
+                "threatId": generate_uuid(),
+                "threatTime": (current_time - timedelta(minutes=random.randint(1, 5))).isoformat() + "Z",
+                "threatType": "URL",
+                "threatUrl": f"https://threatinsight.proofpoint.com/#/{generate_uuid()}/threat/u/{generate_uuid()}"
+            }
+        ],
+        "toAddresses": ["clark.kent@pharmtech.zz", "diana.prince@pharmtech.zz"]
+    }
+
+    log_data = {
+        "clicksPermitted": [clicks_permitted_log],
+        "messagesBlocked": [messages_blocked_log],
+        "queryEndTime": current_time.isoformat() + "Z"
+    }
+
+    return json.dumps(log_data)
 
 def construct_curl_command(logscale_api_url, logscale_api_token, raw_log):
     """
@@ -113,7 +204,7 @@ def main():
         encounter_id = config['encounter_id']
         alias = config['alias']
 
-        raw_log = generate_raw_log(encounter_id, alias)
+        raw_log = generate_proofpoint_logs(encounter_id, alias)
         logging.info(f"Generated raw log: {raw_log}")
         status_code, response_text = send_to_logscale(logscale_api_url, logscale_api_token, raw_log)
         logging.info(f"Status Code: {status_code}, Response: {response_text}")
@@ -125,13 +216,22 @@ def main():
         # Description of the log line structure
         print("\nDescription:")
         print("The log line includes various details such as:")
-        print("- Timestamp (timestamp)")
-        print("- Log type and action (e.g., Firewall ALLOW)")
-        print("- Source IP (src_ip)")
-        print("- Destination IP (dest_ip)")
-        print("- Port (port)")
-        print("- Encounter ID (Encounter ID)")
-        print("- Alias (Alias)")
+        print("- campaignId (campaignId)")
+        print("- classification (classification)")
+        print("- clickIP (clickIP)")
+        print("- clickTime (clickTime)")
+        print("- GUID (GUID)")
+        print("- id (id)")
+        print("- messageID (messageID)")
+        print("- recipient (recipient)")
+        print("- sender (sender)")
+        print("- senderIP (senderIP)")
+        print("- threatID (threatID)")
+        print("- threatTime (threatTime)")
+        print("- threatURL (threatURL)")
+        print("- threatStatus (threatStatus)")
+        print("- url (url)")
+        print("- userAgent (userAgent)")
         print("\nThe raw data is ingested into LogScale using the raw API endpoint.")
 
         # How to search for the data in LogScale
