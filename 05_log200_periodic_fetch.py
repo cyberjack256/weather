@@ -157,16 +157,16 @@ def generate_extreme_weather_data(weather_data, extreme_field, extreme_level, un
 
     logging.debug(f"Generating extreme weather data for {extreme_field}...")
     extreme_values_metric = {
-        "temperature": (50, -50),  # High and low extreme temperatures in °C
-        "wind_speed": (100, 0),    # High and low extreme wind speeds in km/h
-        "precipitation": (500, 0), # High and low extreme precipitation in mm
-        "dew_point": (30, -30)     # High and low extreme dew points in °C
+        "weather.temperature": (50, -50),  # High and low extreme temperatures in °C
+        "weather.wind_speed": (100, 0),    # High and low extreme wind speeds in km/h
+        "weather.precipitation": (500, 0), # High and low extreme precipitation in mm
+        "weather.dew_point": (30, -30)     # High and low extreme dew points in °C
     }
     extreme_values_imperial = {
-        "temperature": (122, -58),  # High and low extreme temperatures in °F
-        "wind_speed": (62.14, 0),   # High and low extreme wind speeds in mph
-        "precipitation": (19.69, 0),# High and low extreme precipitation in inches
-        "dew_point": (86, -22)      # High and low extreme dew points in °F
+        "weather.temperature": (122, -58),  # High and low extreme temperatures in °F
+        "weather.wind_speed": (62.14, 0),   # High and low extreme wind speeds in mph
+        "weather.precipitation": (19.69, 0),# High and low extreme precipitation in inches
+        "wearher.dew_point": (86, -22)      # High and low extreme dew points in °F
     }
 
     extreme_values = extreme_values_imperial if units == 'imperial' else extreme_values_metric
