@@ -13,7 +13,7 @@ import numpy as np
 from meteostat import Point, Hourly, Stations
 
 # Set up logging
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 
 CONFIG_FILE = 'config.json'
 REQUIRED_FIELDS = [
@@ -80,8 +80,6 @@ def generate_extreme_weather_data(weather_data, extreme_field, extreme_level, un
     if extreme_field is None or extreme_field.lower() == 'none' or extreme_level is None or extreme_level.lower() == 'none':
         return weather_data, ""
 
-    logging.debug(f"Original weather data: {weather_data}")
-
     extreme_values_metric = {
         "temp": (50, -50),  # High and low extreme temperatures in °C
         "wspd": (100, 0),    # High and low extreme wind speeds in km/h
@@ -98,11 +96,9 @@ def generate_extreme_weather_data(weather_data, extreme_field, extreme_level, un
     extreme_values = extreme_values_imperial if units == 'imperial' else extreme_values_metric
     high_value, low_value = extreme_values.get(extreme_field, (None, None))
 
-    logging.debug(f"Extreme values for {extreme_field}: {high_value}, {low_value}")
-
     if high_value is None or low_value is None:
         logging.error(f"Invalid extreme field: {extreme_field}")
-        logging.debug(f"Valid fields are: {list(extreme_values_metric.keys())}")
+        logging.info(f"Valid fields are: {list(extreme_values_metric.keys())}")
         return weather_data, ""
 
     extreme_value = high_value if extreme_level.lower() == 'high' else low_value
@@ -110,13 +106,10 @@ def generate_extreme_weather_data(weather_data, extreme_field, extreme_level, un
         weather_data[extreme_field] = extreme_value
     else:
         logging.error(f"Field {extreme_field} not found in weather data columns.")
-        logging.debug(f"Available columns: {weather_data.columns}")
-
-    logging.debug(f"Weather data after applying extreme values: {weather_data}")
+        logging.info(f"Available columns: {weather_data.columns}")
 
     alert_message = f"Extreme {extreme_field} alert: {extreme_value}"
     weather_data["alert"] = alert_message
-    logging.debug(f"Extreme weather data: {weather_data}")
     return weather_data, alert_message
 
 def generate_log_lines(weather_data, sun_and_moon_info, encounter_id, alias, config, alert_message):
@@ -252,14 +245,10 @@ def main():
         logging.error("No weather data fetched.")
         return
 
-    logging.debug(f"Fetched weather data: {weather_data}")
-
     # Generate extreme weather data if specified
     alert_message = ""
     if extreme_field and extreme_field.lower() != 'none':
         weather_data, alert_message = generate_extreme_weather_data(weather_data, extreme_field, extreme_level, units)
-
-    logging.debug(f"Weather data to be logged: {weather_data}")
 
     # Generate log lines
     log_lines = generate_log_lines(weather_data, sun_and_moon_info, encounter_id, alias, config, alert_message)
@@ -267,29 +256,20 @@ def main():
         logging.error("No log lines generated.")
         return
 
-    # Display an example log line for user reference
-    example_log_line = json.dumps(log_lines[0], indent=4)
-    print("\nExample Log Line:")
-    print(example_log_line)
+    # Display a summary for user reference
+    print("\nSummary of Changes:")
+    if alert_message:
+        print(f"- Extreme values applied for {extreme_field}: {weather_data[extreme_field][0]}")
+        print(f"- Alert generated: {alert_message}")
+    else:
+        print("- No extreme values applied.")
+    print(f"\nSearch for the following fields in LogScale:")
+    print(f"- observer.id: {encounter_id}")
+    print(f"- observer.alias: {alias}")
 
-    # Description of the log line structure
-    print("\nDescription:")
-    print("The log line includes various details such as:")
-    print("- Timestamp (@timestamp)")
-    print("- Geolocation (city_name, country_name, latitude, longitude)")
-    print("- Observer information (alias, id)")
-    print("- Weather details (temperature, humidity, wind speed, etc.)")
-    print("- Sun and moon information (sunrise, sunset, moon phase)")
-    print("\nThe structured data is ingested into LogScale using the humio-structured API endpoint.")
-
-    # How to search for the data in LogScale
-    print("\nHow to Search for Your Data in LogScale:")
-    print(f"1. Go to your LogScale view and set the time range from {date_specified.strftime('%Y-%m-%d')} to {date_specified.strftime('%Y-%m-%d')}.")
-    print(f"2. Use the following query to search for your data:")
-    print(f"observer.id={encounter_id} AND observer.alias={alias}")
-
+    # Send log lines to LogScale
     status_code, response_text = send_to_logscale(log_lines, logscale_api_token)
-    logging.debug(f"Response from LogScale: Status Code: {status_code}, Response: {response_text}")
+    logging.info(f"Response from LogScale: Status Code: {status_code}, Response: {response_text}")
 
 if __name__ == "__main__":
     main()
