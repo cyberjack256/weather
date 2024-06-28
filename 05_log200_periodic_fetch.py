@@ -97,12 +97,20 @@ def generate_extreme_weather_data(weather_data, extreme_field, extreme_level, un
 
     extreme_values = extreme_values_imperial if units == 'imperial' else extreme_values_metric
     high_value, low_value = extreme_values.get(extreme_field, (None, None))
+
+    logging.debug(f"Extreme values for {extreme_field}: {high_value}, {low_value}")
+
     if high_value is None or low_value is None:
         logging.error(f"Invalid extreme field: {extreme_field}")
+        logging.debug(f"Valid fields are: {list(extreme_values_metric.keys())}")
         return weather_data, ""
+
     extreme_value = high_value if extreme_level.lower() == 'high' else low_value
-    for time in weather_data.index:
-        weather_data.at[time, extreme_field] = extreme_value
+    if extreme_field in weather_data.columns:
+        weather_data[extreme_field] = extreme_value
+    else:
+        logging.error(f"Field {extreme_field} not found in weather data columns.")
+        logging.debug(f"Available columns: {weather_data.columns}")
 
     logging.debug(f"Weather data after applying extreme values: {weather_data}")
 
