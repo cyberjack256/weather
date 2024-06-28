@@ -182,7 +182,10 @@ def generate_extreme_weather_data(weather_data, extreme_field, high, units):
             weather_data.at[time, "coco"] = 1 if high else 2  # Example condition codes
         elif extreme_field == "wspd":
             weather_data.at[time, "coco"] = 3 if high else 4
-        # Additional condition codes can be set for other fields
+        elif extreme_field == "prcp":
+            weather_data.at[time, "coco"] = 5 if high else 6
+        elif extreme_field == "dwpt":
+            weather_data.at[time, "coco"] = 7 if high else 8
     alert_message = f"Extreme {extreme_field} alert: {extreme_value}"
     weather_data["alert"] = alert_message
     logging.debug(f"Extreme weather data: {weather_data}")
