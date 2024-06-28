@@ -34,7 +34,7 @@ FIELD_EXAMPLES = {
     'extreme_level': 'high, low, or <none>'
 }
 
-EXTREME_FIELDS = ['temperature', 'wspd', 'prcp', 'dwpt', 'none']
+EXTREME_FIELDS = ['temp', 'wspd', 'prcp', 'dwpt', 'none']
 EXTREME_LEVELS = ['high', 'low', 'none']
 
 # Load configuration
