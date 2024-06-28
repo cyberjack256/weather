@@ -13,7 +13,7 @@ REQUIRED_FIELDS = {
     '01': ['logscale_api_token_structured', 'encounter_id', 'alias'],
     '02': ['logscale_api_token_raw', 'encounter_id', 'alias'],
     '04': ['logscale_api_token_case_study', 'city_name', 'country_name', 'latitude', 'longitude', 'date_start', 'date_end', 'encounter_id', 'alias'],
-    '05': ['logscale_api_token_case_study', 'city_name', 'country_name', 'latitude', 'longitude', 'extreme_field', 'high', 'encounter_id', 'alias']
+    '05': ['logscale_api_token_case_study', 'city_name', 'country_name', 'latitude', 'longitude', 'extreme_field', 'extreme_level', 'encounter_id', 'alias']
 }
 
 # Field examples
@@ -31,7 +31,7 @@ FIELD_EXAMPLES = {
     'alias': 'e.g., racing-jack',
     'units': '<metric> or imperial',
     'extreme_field': 'temperature, wind_speed, precipitation, dew_point, or <none>',
-    'high': 'true, false, or <none>'
+    'extreme_level': 'high, low, or <none>'
 }
 
 # Load configuration
