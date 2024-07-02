@@ -135,7 +135,7 @@ def generate_log_lines(weather_data, encounter_id, alias, config):
                 "ecs": {
                     "version": "1.12.0"
                 },
-                "moon_phase": sun_and_moon_info["moon_phase"],
+                "moon.phase": sun_and_moon_info["moon_phase"],
                 "weather": {
                     "temperature": row.get("tavg"),
                     "min_temperature": row.get("tmin"),
