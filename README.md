@@ -59,7 +59,7 @@ Tailor your experience by editing the `config.json` file. Here, you can add new 
 
 ## 🎓 About this Project
 
-The **Weather Ingestion Wizard for Falcon LogScale** is crafted to support data ingestion and analysis learning in CrowdStrike's Falcon LogScale environment. This project provides a unique, hands-on learning experience by enabling the ingestion of diverse weather datasets for each student.
+The **Weather Ingestion Wizard for Falcon LogScale** is crafted to support data ingestion and analysis learning in CrowdStrike's Falcon LogScale environment. This project provides a unique, hands-on learning experience by enabling the ingestion of diverse weather datasets for each student. It helps students generate and get data into LogScale quickly, using an open-source real-world dataset to test their connection and knowledge of ingestion APIs.
 
 ### LOG 200: Managing and Administering LogScale
 
