@@ -32,17 +32,43 @@ Welcome to the **Weather Ingestion Wizard for Falcon LogScale** repository! This
 
 ### Installation
 
-1. **Clone the repository**:
+These scripts were developed and tested on an Amazon EC2 Linux host. Follow the steps below to set up your environment. While they are designed for Amazon EC2 Linux, they should also work on other Linux distributions that support Python 3.9 and the required libraries.
+
+1. **Install Python 3.9**:
+   - On Amazon Linux 2:
+     ```bash
+     sudo yum update
+     sudo yum install python39
+     python3.9 -m ensurepip --upgrade
+     ```
+   - On Ubuntu:
+     ```bash
+     sudo apt update
+     sudo apt install python3.9 python3.9-venv python3.9-dev
+     ```
+   - On CentOS/RHEL:
+     ```bash
+     sudo yum update
+     sudo yum install python39
+     python3.9 -m ensurepip --upgrade
+     ```
+   - On Fedora:
+     ```bash
+     sudo dnf update
+     sudo dnf install python3.9
+     ```
+
+2. **Clone the repository**:
     ```bash
     git clone https://github.com/cyberjack256/weather.git
     ```
-2. **Navigate to the project directory**:
+3. **Navigate to the project directory**:
     ```bash
     cd weather
     ```
-3. **Install the required libraries**:
+4. **Install the required libraries**:
     ```bash
-    pip install -r requirements.txt
+    pip3.9 install -r requirements.txt
     ```
 
 ### Usage
@@ -50,7 +76,7 @@ Welcome to the **Weather Ingestion Wizard for Falcon LogScale** repository! This
 Run the scripts through the intuitive menu interface. Execute the `menu.py` script to explore the various functionalities. This user-friendly menu will guide you through all the options without needing to remember individual script names.
 
     ```bash
-    python3 menu.py
+    python3.9 menu.py
     ```
 
 ### Configuration
