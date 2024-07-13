@@ -34,29 +34,33 @@ Welcome to the **Weather Ingestion Wizard for Falcon LogScale** repository! This
 
 These scripts were developed and tested on an Amazon EC2 Linux host. Follow the steps below to set up your environment. While they are designed for Amazon EC2 Linux, they should also work on other Linux distributions that support Python 3.9 and the required libraries.
 
-1. **Install Python 3.9**:
-   - On Amazon Linux 2:
-     ```bash
-     sudo yum update
-     sudo yum install python39
-     python3.9 -m ensurepip --upgrade
-     ```
-   - On Ubuntu:
-     ```bash
-     sudo apt update
-     sudo apt install python3.9 python3.9-venv python3.9-dev
-     ```
-   - On CentOS/RHEL:
-     ```bash
-     sudo yum update
-     sudo yum install python39
-     python3.9 -m ensurepip --upgrade
-     ```
-   - On Fedora:
-     ```bash
-     sudo dnf update
-     sudo dnf install python3.9
-     ```
+1. **Install Python 3.9.16**:
+    - Download and extract Python 3.9.16:
+      ```bash
+      cd /usr/src
+      if [ ! -d "Python-3.9.16" ]; then
+        sudo wget https://www.python.org/ftp/python/3.9.16/Python-3.9.16.tgz
+        sudo tar xzf Python-3.9.16.tgz
+        sudo rm Python-3.9.16.tgz
+      fi
+      ```
+    - Configure and install Python:
+      ```bash
+      cd Python-3.9.16
+      sudo ./configure --enable-optimizations --with-openssl=/usr/local/openssl
+      sudo make altinstall
+      ```
+    - Verify the installation:
+      ```bash
+      python3.9 --version
+      python3.9 -c "import ssl; print(ssl.OPENSSL_VERSION)"
+      ```
+    - Upgrade pip and install required packages:
+      ```bash
+      python3.9 -m ensurepip
+      python3.9 -m pip install --upgrade pip
+      python3.9 -m pip install requests astral timezonefinder meteostat pandas numpy
+      ```
 
 2. **Clone the repository**:
     ```bash
@@ -68,7 +72,7 @@ These scripts were developed and tested on an Amazon EC2 Linux host. Follow the 
     ```
 4. **Install the required libraries**:
     ```bash
-    pip3.9 install -r requirements.txt
+    python3.9 -m pip install -r requirements.txt
     ```
 
 ### Usage
