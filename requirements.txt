@@ -1,0 +1,6 @@
+requests
+astral
+timezonefinder
+pandas
+numpy
+meteostat
