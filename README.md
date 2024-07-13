@@ -55,12 +55,6 @@ These scripts were developed and tested on an Amazon EC2 Linux host. Follow the 
       python3.9 --version
       python3.9 -c "import ssl; print(ssl.OPENSSL_VERSION)"
       ```
-    - Upgrade pip and install required packages:
-      ```bash
-      python3.9 -m ensurepip
-      python3.9 -m pip install --upgrade pip
-      python3.9 -m pip install requests astral timezonefinder meteostat pandas numpy
-      ```
 
 2. **Clone the repository**:
     ```bash
@@ -72,6 +66,8 @@ These scripts were developed and tested on an Amazon EC2 Linux host. Follow the 
     ```
 4. **Install the required libraries**:
     ```bash
+    python3.9 -m ensurepip
+    python3.9 -m pip install --upgrade pip
     python3.9 -m pip install -r requirements.txt
     ```
 
@@ -117,4 +113,4 @@ If you have questions or need support, please open an issue on this repository. 
 
 ---
 
-Happy weather data wrangling! ☀️🌧️❄️
+Happy weather data wrangling! ☀️🌧️
